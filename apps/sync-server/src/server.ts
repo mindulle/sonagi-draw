@@ -1,3 +1,16 @@
+import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
+
+Sentry.init({
+  dsn: "https://4b69a39699591b04328705f819ed1bb3@o4504455820869632.ingest.us.sentry.io/4511766347120640",
+  environment: process.env.NODE_ENV || 'development',
+  integrations: [
+    nodeProfilingIntegration(),
+  ],
+  tracesSampleRate: 0.1,
+  profilesSampleRate: 0.1,
+});
+
 import cors from '@fastify/cors'
 import websocketPlugin from '@fastify/websocket'
 import fastify from 'fastify'
