@@ -68,23 +68,30 @@ def init_db(db_path: str, template_name: str = "default"):
     template_path = os.path.join(TEMPLATE_DIR, f"{template_name}.db")
     if not os.path.exists(template_path):
         # 기본 템플릿이 없을 경우 Fallback (예전 하드코딩 호환성)
-        template_path = os.path.join(DB_DIR, "6839ol97.db")
+        template_path = os.path.join(TEMPLATE_DIR, "default.db")
+        if not os.path.exists(template_path):
+            template_path = os.path.join(DB_DIR, "6839ol97.db")
         
     shutil.copyfile(template_path, db_path)
     
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    # 기존 유저 세션 및 기본 페이지 삭제
-    c.execute("DELETE FROM documents WHERE id LIKE 'user:%' OR id LIKE 'shape:%' OR id LIKE 'asset:%' OR id LIKE 'page:%'")
+    # 기존 유저 세션 정보만 공통으로 삭제
+    c.execute("DELETE FROM documents WHERE id LIKE 'user:%'")
     
-    # 멀티 페이지(3-Tabs) 주입
-    ts = int(time.time() * 1000)
-    pages = [
-        ("page:moodboard", json.dumps({"meta":{},"id":"page:moodboard","name":"🎨 Moodboard","index":"a1","typeName":"page"}).encode('utf-8'), ts),
-        ("page:wireframe", json.dumps({"meta":{},"id":"page:wireframe","name":"📐 Wireframe & UI Kit","index":"a2","typeName":"page"}).encode('utf-8'), ts),
-        ("page:journey", json.dumps({"meta":{},"id":"page:journey","name":"🗺️ User Journey","index":"a3","typeName":"page"}).encode('utf-8'), ts)
-    ]
-    c.executemany("INSERT INTO documents (id, state, lastChangedClock) VALUES (?, ?, ?)", pages)
+    # default 템플릿을 생성할 때만 기존 shape 등을 밀고 3-Tab을 세팅
+    if template_name == "default":
+        c.execute("DELETE FROM documents WHERE id LIKE 'shape:%' OR id LIKE 'asset:%' OR id LIKE 'page:%'")
+        
+        # 멀티 페이지(3-Tabs) 주입
+        ts = int(time.time() * 1000)
+        pages = [
+            ("page:moodboard", json.dumps({"meta":{},"id":"page:moodboard","name":"🎨 Moodboard","index":"a1","typeName":"page"}).encode('utf-8'), ts),
+            ("page:wireframe", json.dumps({"meta":{},"id":"page:wireframe","name":"📐 Wireframe & UI Kit","index":"a2","typeName":"page"}).encode('utf-8'), ts),
+            ("page:journey", json.dumps({"meta":{},"id":"page:journey","name":"🗺️ User Journey","index":"a3","typeName":"page"}).encode('utf-8'), ts)
+        ]
+        c.executemany("INSERT INTO documents (id, state, lastChangedClock) VALUES (?, ?, ?)", pages)
+        
     conn.commit()
     conn.close()
 
@@ -178,17 +185,18 @@ def create_room(title: str, issue_id: Optional[str] = None, template_name: str =
     
     init_db(db_path, template_name)
     
-    # Page 1: Moodboard 타이틀
-    add_shape_to_db(db_path, create_text_shape(100, 50, f"🎨 {title}", size="xl", parent_id="page:moodboard"))
-    if issue_id:
-        add_shape_to_db(db_path, create_text_shape(100, 120, f"🔗 Associated with Issue: {issue_id}", color="blue", size="s", parent_id="page:moodboard"))
-    
-    # Page 2: Wireframe & UI Kit 초기 세팅
-    generate_wireframe_kit(room_id)
-    
-    # Page 3: User Journey 초기 세팅
-    generate_user_journey(room_id)
-    
+    if template_name == "default":
+        # Page 1: Moodboard 타이틀
+        add_shape_to_db(db_path, create_text_shape(100, 50, f"🎨 {title}", size="xl", parent_id="page:moodboard"))
+        if issue_id:
+            add_shape_to_db(db_path, create_text_shape(100, 120, f"🔗 Associated with Issue: {issue_id}", color="blue", size="s", parent_id="page:moodboard"))
+        
+        # Page 2: Wireframe & UI Kit 초기 세팅
+        generate_wireframe_kit(room_id)
+        
+        # Page 3: User Journey 초기 세팅
+        generate_user_journey(room_id)
+        
     room_url = f"https://draw.sonagi.space/?room={room_id}"
     return f"✅ 방 생성 완료: {room_url}"
 
