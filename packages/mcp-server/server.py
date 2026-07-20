@@ -15,6 +15,7 @@ mcp = FastMCP("sonagi-draw-mcp")
 
 # Tldraw DB 경로 (컨테이너 볼륨 마운트 경로)
 DB_DIR = "/home/ubuntu/sonagi-draw/apps/sync-server/.rooms"
+TEMPLATE_DIR = "/home/ubuntu/sonagi-draw/apps/sync-server/.templates"
 
 import string
 
@@ -62,9 +63,13 @@ def upload_image_to_cdn(image_url: str) -> str:
 def get_db_path(room_id: str) -> str:
     return os.path.join(DB_DIR, f"{room_id}.db")
 
-def init_db(db_path: str):
-    # 빈 템플릿 DB(정상 스키마)를 복사하여 초기화
-    template_path = os.path.join(DB_DIR, "6839ol97.db")
+def init_db(db_path: str, template_name: str = "default"):
+    # 지정된 템플릿 DB 복사하여 초기화
+    template_path = os.path.join(TEMPLATE_DIR, f"{template_name}.db")
+    if not os.path.exists(template_path):
+        # 기본 템플릿이 없을 경우 Fallback (예전 하드코딩 호환성)
+        template_path = os.path.join(DB_DIR, "6839ol97.db")
+        
     shutil.copyfile(template_path, db_path)
     
     conn = sqlite3.connect(db_path)
@@ -162,15 +167,16 @@ def add_image_with_asset(db_path: str, x: float, y: float, w: float, h: float, u
 
 
 @mcp.tool()
-def create_room(title: str, issue_id: Optional[str] = None) -> str:
+def create_room(title: str, issue_id: Optional[str] = None, template_name: str = "default") -> str:
     """
     신규 tldraw 방을 생성하고 3개의 멀티 페이지(Moodboard, Wireframe, User Journey)를 기본 세팅합니다.
+    template_name을 지정하여 특정 템플릿 기반으로 생성할 수 있습니다.
     """
     os.makedirs(DB_DIR, exist_ok=True)
     room_id = uuid.uuid4().hex[:8]
     db_path = get_db_path(room_id)
     
-    init_db(db_path)
+    init_db(db_path, template_name)
     
     # Page 1: Moodboard 타이틀
     add_shape_to_db(db_path, create_text_shape(100, 50, f"🎨 {title}", size="xl", parent_id="page:moodboard"))
@@ -277,6 +283,36 @@ def get_room_state(room_id: str) -> Dict[str, Any]:
         "total_shapes": len(shapes),
         "shapes": shapes
     }
+
+@mcp.tool()
+def set_template_room(room_id: str, template_name: str) -> str:
+    """
+    특정 방의 현재 상태를 새로운 템플릿으로 저장합니다.
+    이후 create_room 호출 시 이 template_name을 사용하여 방을 생성할 수 있습니다.
+    """
+    db_path = get_db_path(room_id)
+    if not os.path.exists(db_path):
+        return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
+        
+    os.makedirs(TEMPLATE_DIR, exist_ok=True)
+    template_path = os.path.join(TEMPLATE_DIR, f"{template_name}.db")
+    shutil.copyfile(db_path, template_path)
+    
+    return f"✅ 템플릿 저장 완료: Room '{room_id}'가 '{template_name}' 템플릿으로 저장되었습니다."
+
+@mcp.tool()
+def list_templates() -> List[str]:
+    """
+    사용 가능한 모든 템플릿 목록을 반환합니다.
+    """
+    if not os.path.exists(TEMPLATE_DIR):
+        return []
+    
+    templates = []
+    for file_name in os.listdir(TEMPLATE_DIR):
+        if file_name.endswith(".db"):
+            templates.append(file_name.replace(".db", ""))
+    return templates
 
 @mcp.tool()
 def delete_room(room_id: str) -> str:
