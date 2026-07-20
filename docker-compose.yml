@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - sync-server
+
+  sync-server:
+    build:
+      context: ./apps/sync-server
+      dockerfile: Dockerfile
+    ports:
+      - "5858:5858"
+    volumes:
+      # Sync server rooms data
+      - ./apps/sync-server/.rooms:/app/.rooms
+      - ./apps/sync-server/.assets:/app/.assets

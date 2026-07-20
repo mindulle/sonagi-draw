@@ -1,24 +1,14 @@
 {
-  "name": "draw-sonagi-space",
+  "name": "sonagi-draw-monorepo",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@tldraw/sync": "^5.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tldraw": "^5.2.5"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react-swc": "^3.10.2",
-    "typescript": "^5.8.3",
-    "vite": "^7.0.1"
+    "dev": "docker-compose up -d && pnpm -r dev",
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean"
   }
 }
