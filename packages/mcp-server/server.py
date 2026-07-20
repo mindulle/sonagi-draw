@@ -278,5 +278,35 @@ def get_room_state(room_id: str) -> Dict[str, Any]:
         "shapes": shapes
     }
 
+@mcp.tool()
+def delete_room(room_id: str) -> str:
+    """
+    특정 tldraw 방(SQLite DB)을 삭제합니다.
+    """
+    if room_id == "6839ol97":
+        return "❌ 오류: 템플릿 DB(6839ol97)는 기본 스키마 원본이므로 삭제할 수 없습니다."
+        
+    db_path = get_db_path(room_id)
+    if os.path.exists(db_path):
+        os.remove(db_path)
+        return f"✅ 방 삭제 완료: Room ID '{room_id}'"
+    return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
+
+@mcp.tool()
+def cleanup_all_test_rooms() -> str:
+    """
+    템플릿 DB를 제외한 모든 tldraw 방을 일괄 삭제하여 디렉토리를 정리합니다.
+    """
+    if not os.path.exists(DB_DIR):
+        return "정리할 방이 없습니다."
+        
+    count = 0
+    for file_name in os.listdir(DB_DIR):
+        if file_name.endswith(".db") and file_name != "6839ol97.db":
+            os.remove(os.path.join(DB_DIR, file_name))
+            count += 1
+            
+    return f"✅ 방 일괄 정리 완료: 총 {count}개의 테스트 방이 삭제되었습니다."
+
 if __name__ == "__main__":
     mcp.run()
