@@ -264,9 +264,10 @@ def add_sticky_note(room_id: str, text: str, x: float, y: float, color: str = "y
     return f"✅ 포스트잇 부착 완료: Room {room_id} (x:{x}, y:{y}, text:'{text}')"
 
 @mcp.tool()
-def get_room_state(room_id: str) -> Dict[str, Any]:
+def get_room_state(room_id: str, page_id: Optional[str] = None) -> Dict[str, Any]:
     """
     [Phase 3] 현재 캔버스 상태(Shape) 목록 반환 (Make Real 연동용)
+    page_id(예: 'page:wireframe')를 지정하면 해당 페이지 내의 모든 도형만 필터링하여 반환합니다.
     """
     db_path = get_db_path(room_id)
     if not os.path.exists(db_path):
@@ -274,14 +275,42 @@ def get_room_state(room_id: str) -> Dict[str, Any]:
         
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
+    
+    # 페이지 목록 조회
+    c.execute("SELECT state FROM documents WHERE id LIKE 'page:%'")
+    pages = [json.loads(row[0]) for row in c.fetchall()]
+    
+    # 전체 도형 조회
     c.execute("SELECT state FROM documents WHERE id LIKE 'shape:%'")
-    shapes = [json.loads(row[0]) for row in c.fetchall()]
+    all_shapes = [json.loads(row[0]) for row in c.fetchall()]
     conn.close()
     
+    # 특정 페이지 필터링 로직 (Frame이나 Group 안에 묶인 도형까지 전부 찾기 위한 트리 순회)
+    if page_id:
+        target_shapes = []
+        parent_ids_to_search = {page_id}
+        
+        while parent_ids_to_search:
+            next_parent_ids = set()
+            for shape in all_shapes:
+                if shape.get("parentId") in parent_ids_to_search:
+                    target_shapes.append(shape)
+                    next_parent_ids.add(shape["id"])
+                    
+            # 이미 타겟으로 잡힌 도형은 탐색 풀에서 제외 (무한루프 및 중복 방지)
+            all_shapes = [s for s in all_shapes if s["id"] not in next_parent_ids]
+            parent_ids_to_search = next_parent_ids
+            
+        shapes_to_return = target_shapes
+    else:
+        shapes_to_return = all_shapes
+        
     return {
         "room_id": room_id,
-        "total_shapes": len(shapes),
-        "shapes": shapes
+        "page_id": page_id or "all",
+        "available_pages": [{"id": p.get("id"), "name": p.get("name")} for p in pages],
+        "total_shapes": len(shapes_to_return),
+        "shapes": shapes_to_return
     }
 
 @mcp.tool()
