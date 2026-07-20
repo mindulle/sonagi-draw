@@ -14,8 +14,8 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("sonagi-draw-mcp")
 
 # Tldraw DB 경로 (컨테이너 볼륨 마운트 경로)
-DB_DIR = "/home/ubuntu/sonagi-draw/apps/sync-server/.rooms"
-TEMPLATE_DIR = "/home/ubuntu/sonagi-draw/apps/sync-server/.templates"
+DB_DIR = "/home/ubuntu/sonagi-draw-prod/.rooms"
+TEMPLATE_DIR = "/home/ubuntu/sonagi-draw-prod/.templates"
 
 import string
 
