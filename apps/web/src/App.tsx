@@ -32,14 +32,13 @@ function LibraryPanel() {
     const insertComponent = (type: string) => {
         const center = editor.getViewportPageBounds().center
         const bgId = createShapeId()
-        const groupId = createShapeId()
         
         if (type === 'button') {
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm' } },
                 { id: groupId, type: 'group', x: center.x, y: center.y, props: {} }
             ] as any)
-            editor.reparentShapes([bgId], groupId)
+            editor.groupShapes([bgId])
         } else if (type === 'card') {
             const imgId = createShapeId()
             editor.createShapes([
@@ -47,7 +46,7 @@ function LibraryPanel() {
                 { id: imgId, type: 'geo', x: center.x + 10, y: center.y + 10, props: { geo: 'rectangle', color: 'grey', fill: 'solid', w: 280, h: 140 } },
                 { id: groupId, type: 'group', x: center.x, y: center.y, props: {} }
             ] as any)
-            editor.reparentShapes([bgId, imgId], groupId)
+            editor.groupShapes([bgId, imgId])
         } else if (type === 'modal') {
             const overlayId = createShapeId()
             editor.createShapes([
@@ -55,7 +54,7 @@ function LibraryPanel() {
                 { id: overlayId, type: 'geo', x: center.x + 20, y: center.y + 220, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 460, h: 60 } },
                 { id: groupId, type: 'group', x: center.x, y: center.y, props: {} }
             ] as any)
-            editor.reparentShapes([bgId, overlayId], groupId)
+            editor.groupShapes([bgId, overlayId])
         }
     }
 
@@ -72,7 +71,7 @@ function LibraryPanel() {
                     <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>Components</div>
                     <button onClick={() => insertComponent('button')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>✨ Primary Button</button>
                     <button onClick={() => insertComponent('card')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>🖼️ Content Card</button>
-                    <button onClick={() => insertComponent('modal')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>팝업 Modal Window</button>
+                    <button onClick={() => insertComponent('modal')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>🪟 Modal Window</button>
                 </div>
             )}
         </div>
