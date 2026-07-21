@@ -12,11 +12,13 @@ function generateRoomId() {
 }
 
 function useIsMobile() {
-    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+    const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth <= 768)
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
+        const mql = window.matchMedia('(max-width: 768px)')
+        const handleChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+        
+        mql.addEventListener('change', handleChange)
+        return () => mql.removeEventListener('change', handleChange)
     }, [])
     return isMobile
 }
@@ -253,7 +255,7 @@ function LibrarySidebar() {
                 position: 'fixed',
                 bottom: 0,
                 left: 0,
-                width: '100vw',
+                width: '100%',
                 maxHeight: '60vh',
                 background: 'white',
                 borderTop: '1px solid #e5e7eb',
@@ -263,7 +265,9 @@ function LibrarySidebar() {
                 flexDirection: 'column',
                 boxShadow: '0 -10px 25px rgba(0,0,0,0.2)',
                 zIndex: 99999,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)'
             } : { position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px', width: '320px', maxHeight: 'calc(100vh - 100px)', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 -10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ margin: 0, fontSize: '15px', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>UI Library</h3>
@@ -354,7 +358,7 @@ function LibrarySidebar() {
 function InFrontWrapper() {
     const isMobile = useIsMobile()
     return (
-        <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 56 : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 'calc(56px + env(safe-area-inset-top, 0px))' : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
             <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
                 <ShareButton />
                 <LibrarySidebar />
