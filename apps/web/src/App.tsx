@@ -405,20 +405,20 @@ function App() {
     )
 }
 
+const customAssetUrls = {
+    fonts: {
+        draw: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_two@1.0/NanumPen.woff',
+        sans: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/woff2/Pretendard-Regular.woff2',
+        serif: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2111@1.0/GowunBatang-Regular.woff',
+        mono: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2202@1.0/D2Coding.woff'
+    }
+}
+
 function TldrawWrapper({ roomId }: { roomId: string }) {
     const storeSync = useSync({
 		uri: `${WORKER_URL}/connect/${roomId}`,
         assets: multiplayerAssets
 	})
-
-    const customAssetUrls = {
-        fonts: {
-            draw: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_two@1.0/NanumPen.woff',
-            sans: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/woff2/Pretendard-Regular.woff2',
-            serif: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2111@1.0/GowunBatang-Regular.woff',
-            mono: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2202@1.0/D2Coding.woff'
-        }
-    }
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
