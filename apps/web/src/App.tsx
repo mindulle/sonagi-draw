@@ -36,7 +36,6 @@ function LibraryPanel() {
         if (type === 'button') {
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm' } },
-                { id: groupId, type: 'group', x: center.x, y: center.y, props: {} }
             ] as any)
             editor.groupShapes([bgId])
         } else if (type === 'card') {
@@ -44,7 +43,6 @@ function LibraryPanel() {
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 300, h: 250 } },
                 { id: imgId, type: 'geo', x: center.x + 10, y: center.y + 10, props: { geo: 'rectangle', color: 'grey', fill: 'solid', w: 280, h: 140 } },
-                { id: groupId, type: 'group', x: center.x, y: center.y, props: {} }
             ] as any)
             editor.groupShapes([bgId, imgId])
         } else if (type === 'modal') {
@@ -52,7 +50,6 @@ function LibraryPanel() {
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 500, h: 300 } },
                 { id: overlayId, type: 'geo', x: center.x + 20, y: center.y + 220, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 460, h: 60 } },
-                { id: groupId, type: 'group', x: center.x, y: center.y, props: {} }
             ] as any)
             editor.groupShapes([bgId, overlayId])
         }
