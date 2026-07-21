@@ -19,6 +19,24 @@ import { loadAsset, storeAsset } from './assets'
 import { makeOrLoadRoom } from './rooms'
 import { unfurl } from './unfurl'
 
+import fs from 'fs'
+import path from 'path'
+
+const LIBRARY_FILE = path.join(process.cwd(), '.rooms', 'library.json')
+
+const initializeLibrary = () => {
+    if (!fs.existsSync(LIBRARY_FILE)) {
+        if (!fs.existsSync(path.dirname(LIBRARY_FILE))) {
+            fs.mkdirSync(path.dirname(LIBRARY_FILE), { recursive: true })
+        }
+        fs.writeFileSync(LIBRARY_FILE, JSON.stringify({
+            "🧩 기본 컴포넌트": [],
+            "📦 커스텀 에셋": []
+        }, null, 2))
+    }
+}
+
+
 const PORT = 5858
 
 // For this example we use a simple fastify server with the official websocket plugin
@@ -81,6 +99,35 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	})
 
 	// To enable unfurling of bookmarks, we add a simple endpoint that takes a URL query param
+	
+	app.get('/library', async (req, res) => {
+        initializeLibrary()
+        const library = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'))
+        res.send(library)
+	})
+
+	app.post('/library', async (req, res) => {
+        let body = ''
+        for await (const chunk of req.raw) {
+            body += chunk
+        }
+        const newAsset = JSON.parse(body)
+        
+        initializeLibrary()
+        const library = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'))
+        
+        const category = newAsset.category || "📦 커스텀 에셋"
+        if (!library[category]) library[category] = []
+        library[category].push({
+            name: newAsset.name,
+            shapes: newAsset.shapes
+        })
+        
+        fs.writeFileSync(LIBRARY_FILE, JSON.stringify(library, null, 2))
+        res.send({ ok: true })
+	})
+
+
 	app.get('/unfurl', async (req, res) => {
 		const url = (req.query as any).url as string
 		res.send(await unfurl(url))
