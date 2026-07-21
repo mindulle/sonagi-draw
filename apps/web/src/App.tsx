@@ -23,7 +23,7 @@ function ShareButton() {
             onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'}
             onMouseOut={e => e.currentTarget.style.background = '#ffffff'}
         >
-            {copied ? '✅ 복사됨' : '🔗 링크 복사'}
+            {copied ? '복사됨' : '링크 복사'}
         </button>
     )
 }
@@ -31,19 +31,30 @@ function ShareButton() {
 type LibraryAsset = { name: string; content: TLContent; svgString?: string }
 type LibraryData = Record<string, LibraryAsset[]>
 
-const DEFAULT_LIBRARY: LibraryData = { "📦 내 커스텀 에셋": [] }
+const DEFAULT_LIBRARY: LibraryData = { "내 커스텀 에셋": [] }
 
 function LibrarySidebar() {
     (window as any).editor = useEditor(); const editor = useEditor()
     const [isOpen, setIsOpen] = useState(false)
     const [libraryData, setLibraryData] = useState<LibraryData>({})
-    const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "📦 내 커스텀 에셋": true })
+    const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "내 커스텀 에셋": true, "기본 UI 컴포넌트": true })
 
     const loadLibrary = () => {
         try {
             const saved = window.localStorage.getItem('sonagi_library_v2')
-            if (saved) setLibraryData(JSON.parse(saved))
-            else { setLibraryData(DEFAULT_LIBRARY); window.localStorage.setItem('sonagi_library_v2', JSON.stringify(DEFAULT_LIBRARY)) }
+            if (saved) {
+                // Migrate old emoji keys if needed
+                let parsed = JSON.parse(saved)
+                if (parsed["📦 내 커스텀 에셋"]) {
+                    parsed["내 커스텀 에셋"] = parsed["📦 내 커스텀 에셋"]
+                    delete parsed["📦 내 커스텀 에셋"]
+                    window.localStorage.setItem('sonagi_library_v2', JSON.stringify(parsed))
+                }
+                setLibraryData(parsed)
+            } else { 
+                setLibraryData(DEFAULT_LIBRARY)
+                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(DEFAULT_LIBRARY)) 
+            }
         } catch (e) { console.error("Local storage access failed", e) }
     }
 
@@ -70,12 +81,12 @@ function LibrarySidebar() {
             const svgString = result?.svg || ""
 
             const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
-            if (!currentLib["📦 내 커스텀 에셋"]) currentLib["📦 내 커스텀 에셋"] = []
+            if (!currentLib["내 커스텀 에셋"]) currentLib["내 커스텀 에셋"] = []
             
-            currentLib["📦 내 커스텀 에셋"].push({ name: name, content: content, svgString: svgString })
+            currentLib["내 커스텀 에셋"].push({ name: name, content: content, svgString: svgString })
             window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
             setLibraryData(currentLib)
-            setOpenCategories(prev => ({ ...prev, "📦 내 커스텀 에셋": true }))
+            setOpenCategories(prev => ({ ...prev, "내 커스텀 에셋": true }))
         } catch (e) { alert("저장에 실패했습니다."); console.error(e) }
     }
 
@@ -95,7 +106,7 @@ function LibrarySidebar() {
         }
     }
 
-    const insertDefaultComponent = (type: string) => {
+    const insertDefaultComponent = (editor: any, type: string) => {
         const center = editor.getViewportPageBounds().center
         const bgId = createShapeId()
         
@@ -121,6 +132,49 @@ function LibrarySidebar() {
         }
     }
 
+    const BUILTIN_CATEGORIES = [
+        {
+            category: "기본 UI 컴포넌트",
+            items: [
+                { label: "Primary Button", type: "button", insert: insertDefaultComponent },
+                { label: "Content Card", type: "card", insert: insertDefaultComponent },
+                { label: "Modal Window", type: "modal", insert: insertDefaultComponent }
+            ]
+        },
+        {
+            category: "레이아웃 & 디바이스",
+            items: [
+                { label: "모바일 프레임 (목업)", type: "mobile-frame", insert: insertLayoutComponent },
+                { label: "웹 브라우저 창", type: "browser-window", insert: insertLayoutComponent },
+                { label: "대시보드 뼈대", type: "dashboard-skeleton", insert: insertLayoutComponent }
+            ]
+        },
+        {
+            category: "자주 쓰이는 UX 패턴",
+            items: [
+                { label: "로그인 / 회원가입 폼", type: "auth-form", insert: insertUXPatternComponent },
+                { label: "가격 정책 표 (3단)", type: "pricing-table", insert: insertUXPatternComponent },
+                { label: "피드 & 리스트 뷰", type: "feed-list", insert: insertUXPatternComponent }
+            ]
+        },
+        {
+            category: "유저 여정 & 다이어그램",
+            items: [
+                { label: "유저 플로우 노드", type: "user-flow", insert: insertDiagramComponent },
+                { label: "사이트맵 뼈대", type: "sitemap", insert: insertDiagramComponent },
+                { label: "아이디어 보드 (포스트잇)", type: "sticky-cluster", insert: insertDiagramComponent }
+            ]
+        },
+        {
+            category: "어노테이션 & 마커",
+            items: [
+                { label: "마우스 커서 / 포인터", type: "cursor-pointer", insert: insertAnnotationComponent },
+                { label: "코멘트 핀 (숫자 뱃지)", type: "comment-pin", insert: insertAnnotationComponent },
+                { label: "측정선 (Redlines)", type: "measurement-line", insert: insertAnnotationComponent }
+            ]
+        }
+    ]
+
     if (!isOpen) { 
         return (
             <button 
@@ -129,7 +183,7 @@ function LibrarySidebar() {
                 onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} 
                 onMouseOut={e => e.currentTarget.style.background = '#ffffff'}
             >
-                📚 라이브러리
+                라이브러리
             </button> 
         )
     }
@@ -140,12 +194,12 @@ function LibrarySidebar() {
                 onClick={() => setIsOpen(false)}
                 style={{ background: '#f3f4f6', color: '#1d1d1d', border: '1px solid #e5e7eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.1s', pointerEvents: 'all', fontFamily: 'inherit', fontSize: '13px' }}
             >
-                📚 라이브러리 ▼
+                라이브러리 ▼
             </button>
             <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px', width: '320px', maxHeight: 'calc(100vh - 100px)', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 -10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0, fontSize: '15px', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>📚 UI Library</h3>
-                    <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>✖</button>
+                    <h3 style={{ margin: 0, fontSize: '15px', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>UI Library</h3>
+                    <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>✕</button>
                 </div>
                 
                 <div style={{ padding: '10px', borderBottom: '1px solid #e5e7eb', background: 'white' }}>
@@ -153,64 +207,45 @@ function LibrarySidebar() {
                         onClick={addSelectedToLibrary}
                         style={{ width: '100%', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(59,130,246,0.3)' }}
                     >
-                        ➕ 캔버스 선택 항목 추가
+                        캔버스 선택 항목 추가
                     </button>
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '12px', background: '#fcfcfc' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
-                            ✨ 기본 UI 컴포넌트
-                        </div>
-                        <button onClick={() => insertDefaultComponent('button')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>✨ Primary Button</button>
-                        <button onClick={() => insertDefaultComponent('card')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🖼️ Content Card</button>
-                        <button onClick={() => insertDefaultComponent('modal')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🪟 Modal Window</button>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
-                            📱 레이아웃 & 디바이스
-                        </div>
-                        <button onClick={() => insertLayoutComponent(editor, 'mobile-frame')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📱 모바일 프레임 (목업)</button>
-                        <button onClick={() => insertLayoutComponent(editor, 'browser-window')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🌐 웹 브라우저 창</button>
-                        <button onClick={() => insertLayoutComponent(editor, 'dashboard-skeleton')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📊 대시보드 뼈대</button>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
-                            🧩 자주 쓰이는 UX 패턴
-                        </div>
-                        <button onClick={() => insertUXPatternComponent(editor, 'auth-form')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🔐 로그인 / 회원가입 폼</button>
-                        <button onClick={() => insertUXPatternComponent(editor, 'pricing-table')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>💳 가격 정책 표 (3단)</button>
-                        <button onClick={() => insertUXPatternComponent(editor, 'feed-list')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📋 피드 & 리스트 뷰</button>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
-                            🗺️ 유저 여정 & 다이어그램
-                        </div>
-                        <button onClick={() => insertDiagramComponent(editor, 'user-flow')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>➡️ 유저 플로우 노드</button>
-                        <button onClick={() => insertDiagramComponent(editor, 'sitemap')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🌳 사이트맵 뼈대</button>
-                        <button onClick={() => insertDiagramComponent(editor, 'sticky-cluster')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📌 아이디어 보드 (포스트잇)</button>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
-                            💬 어노테이션 & 마커
-                        </div>
-                        <button onClick={() => insertAnnotationComponent(editor, 'cursor-pointer')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🖱️ 마우스 커서 / 포인터</button>
-                        <button onClick={() => insertAnnotationComponent(editor, 'comment-pin')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📍 코멘트 핀 (숫자 뱃지)</button>
-                        <button onClick={() => insertAnnotationComponent(editor, 'measurement-line')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📏 측정선 (Redlines)</button>
-                    </div>
-
-                    {Object.entries(libraryData).map(([category, assets]) => (
+                    
+                    {/* Built-in Categories */}
+                    {BUILTIN_CATEGORIES.map(({ category, items }) => (
                         <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <div 
                                 onClick={() => setOpenCategories(prev => ({ ...prev, [category]: !prev[category] }))}
                                 style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}
                             >
                                 <span>{category}</span>
-                                <span style={{ color: '#9ca3af' }}>{openCategories[category] ? '▼' : '▶'}</span>
+                                <span style={{ color: '#9ca3af', fontSize: '10px' }}>{openCategories[category] ? '▼' : '▶'}</span>
+                            </div>
+                            {openCategories[category] && items.map((item, idx) => (
+                                <button 
+                                    key={idx}
+                                    onClick={() => item.insert(editor, item.type)} 
+                                    style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                    ))}
+
+                    {/* Custom Assets Library */}
+                    {Object.entries(libraryData).map(([category, assets]) => {
+                        const cleanCategory = category.replace('📦 ', '');
+                        return (
+                        <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div 
+                                onClick={() => setOpenCategories(prev => ({ ...prev, [category]: !prev[category] }))}
+                                style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}
+                            >
+                                <span>{cleanCategory}</span>
+                                <span style={{ color: '#9ca3af', fontSize: '10px' }}>{openCategories[category] ? '▼' : '▶'}</span>
                             </div>
                             {openCategories[category] && assets.map((asset, idx) => (
                                 <div 
@@ -219,13 +254,13 @@ function LibrarySidebar() {
                                     style={{ padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#111', fontWeight: 500, transition: 'all 0.1s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🧩 {asset.name}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>{asset.name}</div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); deleteAsset(category, idx); }}
-                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }}
+                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px 4px', fontSize: '11px', fontWeight: 'bold' }}
                                             title="삭제"
                                         >
-                                            ❌
+                                            삭제
                                         </button>
                                     </div>
                                     {asset.svgString && (
@@ -238,7 +273,7 @@ function LibrarySidebar() {
                                 </div>
                             ))}
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         </div>
