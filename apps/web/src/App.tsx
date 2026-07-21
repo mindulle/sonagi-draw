@@ -1,5 +1,5 @@
 import { useSync } from '@tldraw/sync'
-import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent } from 'tldraw'
+import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
 
@@ -78,6 +78,42 @@ function LibrarySidebar() {
         } catch (e) { alert("저장에 실패했습니다."); console.error(e) }
     }
 
+    const deleteAsset = (category: string, index: number) => {
+        if (!confirm('이 에셋을 삭제하시겠습니까?')) return
+        const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
+        if (currentLib[category]) {
+            currentLib[category].splice(index, 1)
+            window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
+            setLibraryData(currentLib)
+        }
+    }
+
+    const insertDefaultComponent = (type: string) => {
+        const center = editor.getViewportPageBounds().center
+        const bgId = createShapeId()
+        
+        if (type === 'button') {
+            editor.createShapes([
+                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm' } },
+            ] as any)
+            editor.groupShapes([bgId])
+        } else if (type === 'card') {
+            const imgId = createShapeId()
+            editor.createShapes([
+                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 300, h: 250 } },
+                { id: imgId, type: 'geo', x: center.x + 10, y: center.y + 10, props: { geo: 'rectangle', color: 'grey', fill: 'solid', w: 280, h: 140 } },
+            ] as any)
+            editor.groupShapes([bgId, imgId])
+        } else if (type === 'modal') {
+            const overlayId = createShapeId()
+            editor.createShapes([
+                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 500, h: 300 } },
+                { id: overlayId, type: 'geo', x: center.x + 20, y: center.y + 220, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 460, h: 60 } },
+            ] as any)
+            editor.groupShapes([bgId, overlayId])
+        }
+    }
+
     if (!isOpen) { 
         return (
             <button 
@@ -115,6 +151,15 @@ function LibrarySidebar() {
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '12px', background: '#fcfcfc' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
+                            ✨ 기본 UI 컴포넌트
+                        </div>
+                        <button onClick={() => insertDefaultComponent('button')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>✨ Primary Button</button>
+                        <button onClick={() => insertDefaultComponent('card')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🖼️ Content Card</button>
+                        <button onClick={() => insertDefaultComponent('modal')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🪟 Modal Window</button>
+                    </div>
+
                     {Object.entries(libraryData).map(([category, assets]) => (
                         <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <div 
@@ -130,7 +175,16 @@ function LibrarySidebar() {
                                     onClick={() => insertAsset(asset)} 
                                     style={{ padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#111', fontWeight: 500, transition: 'all 0.1s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🧩 {asset.name}</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🧩 {asset.name}</div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteAsset(category, idx); }}
+                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }}
+                                            title="삭제"
+                                        >
+                                            ❌
+                                        </button>
+                                    </div>
                                     {asset.svgString && (
                                         <div 
                                             dangerouslySetInnerHTML={{ __html: asset.svgString }} 
