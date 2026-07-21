@@ -407,10 +407,10 @@ function App() {
 
 const customAssetUrls = {
     fonts: {
-        draw: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_two@1.0/NanumPen.woff',
-        sans: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/woff2/Pretendard-Regular.woff2',
-        serif: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2111@1.0/GowunBatang-Regular.woff',
-        mono: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2202@1.0/D2Coding.woff'
+        draw: '/fonts/NanumPen.woff2',
+        sans: '/fonts/Pretendard.woff2',
+        serif: '/fonts/GowunBatang.woff2',
+        mono: '/fonts/D2Coding.woff2'
     }
 }
 
