@@ -407,10 +407,10 @@ function App() {
 
 const customAssetUrls = {
     fonts: {
-        draw: `${window.location.origin}/fonts/NanumPen.woff2`,
-        sans: `${window.location.origin}/fonts/Pretendard.woff2`,
-        serif: `${window.location.origin}/fonts/GowunBatang.woff2`,
-        mono: `${window.location.origin}/fonts/D2Coding.woff2`
+        tldraw_draw: `${window.location.origin}/fonts/NanumPen.woff2`,
+        tldraw_sans: `${window.location.origin}/fonts/Pretendard.woff2`,
+        tldraw_serif: `${window.location.origin}/fonts/GowunBatang.woff2`,
+        tldraw_mono: `${window.location.origin}/fonts/D2Coding.woff2`
     }
 }
 
