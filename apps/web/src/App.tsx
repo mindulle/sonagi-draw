@@ -1,5 +1,5 @@
 import { useSync } from '@tldraw/sync'
-import { Tldraw, TLAssetStore, uniqueId, useEditor, createShapeId } from 'tldraw'
+import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
 
@@ -18,133 +18,150 @@ function ShareButton() {
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
             }}
-            style={{ background: '#000', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', pointerEvents: 'all', fontSize: '13px' }}
+            style={{ background: '#ffffff', color: '#1d1d1d', border: '1px solid #e5e7eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', pointerEvents: 'all', fontSize: '13px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }} onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} onMouseOut={e => e.currentTarget.style.background = '#ffffff'}
         >
-            {copied ? '✅ 링크 복사 완료!' : '🔗 초대 링크 복사'}
+            {copied ? '✅ 복사됨' : '🔗 링크 복사'}
         </button>
     )
 }
 
-type LibraryAsset = { name: string; shapes: any[] }
+type LibraryAsset = { name: string; content: TLContent }
 type LibraryData = Record<string, LibraryAsset[]>
+
+const DEFAULT_LIBRARY: LibraryData = {
+    "📦 내 커스텀 에셋": []
+}
 
 function LibrarySidebar() {
     const editor = useEditor()
     const [isOpen, setIsOpen] = useState(false)
     const [libraryData, setLibraryData] = useState<LibraryData>({})
-    const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({})
+    const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "📦 내 커스텀 에셋": true })
 
-    const fetchLibrary = () => {
-        fetch(`/library-assets.json`)
-            .then(res => res.json())
-            .then(data => {
-                setLibraryData(data)
-                const initialCategories: Record<string, boolean> = {}
-                Object.keys(data).forEach(k => initialCategories[k] = true)
-                setOpenCategories(initialCategories)
-            })
-            .catch(err => console.error("Failed to load library assets:", err))
+    const loadLibrary = () => {
+        try {
+            const saved = window.localStorage.getItem('sonagi_library_v2')
+            if (saved) {
+                setLibraryData(JSON.parse(saved))
+            } else {
+                setLibraryData(DEFAULT_LIBRARY)
+                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(DEFAULT_LIBRARY))
+            }
+        } catch (e) {
+            console.error("Local storage access failed", e)
+        }
     }
 
     useEffect(() => {
-        fetchLibrary()
+        loadLibrary()
     }, [])
 
     const insertAsset = (asset: LibraryAsset) => {
-        const center = editor.getViewportPageBounds().center
-        
-        const idMap: Record<string, ReturnType<typeof createShapeId>> = {}
-        const shapesToCreate = asset.shapes.map(s => {
-            const newId = createShapeId()
-            idMap[s.id] = newId
-            return {
-                ...s,
-                id: newId,
-                x: center.x + s.x,
-                y: center.y + s.y,
-                parentId: s.parentId && s.parentId.startsWith('shape:') ? idMap[s.parentId] || s.parentId : "page:wireframe"
-            }
-        })
-        
-        shapesToCreate.forEach(s => {
-            if (s.parentId && s.parentId.startsWith('shape:') && idMap[s.parentId]) {
-                s.parentId = idMap[s.parentId]
-            }
-        })
-
-        editor.createShapes(shapesToCreate as any)
+        try {
+            editor.putContentOntoCurrentPage(asset.content, { 
+                point: editor.getViewportPageBounds().center,
+                select: true
+            })
+        } catch (e) {
+            console.error("Insert failed", e)
+            alert("에셋 삽입 중 오류가 발생했습니다.")
+        }
     }
 
-    const addSelectedToLibrary = async () => {
-        const selectedShapes = editor.getSelectedShapes()
-        if (selectedShapes.length === 0) {
-            alert("저장할 도형을 먼저 선택해주세요!")
+    const addSelectedToLibrary = () => {
+        const selectedShapeIds = editor.getSelectedShapeIds()
+        if (selectedShapeIds.length === 0) {
+            alert("저장할 도형을 먼저 캔버스에서 선택해주세요!")
             return
         }
 
-        const name = window.prompt("저장할 에셋의 이름을 입력하세요:", "New Asset")
+        const name = window.prompt("저장할 에셋의 이름을 입력하세요:", "새로운 에셋")
         if (!name) return
 
+        try {
+            // Use native tldraw content extraction
+            const content = editor.getContentFromCurrentPage(selectedShapeIds)
+            if (!content) throw new Error("Failed to extract content")
 
-        alert(`백엔드 연동 테스트: ${name} 에셋이 성공적으로 캡처되었습니다!`)
+            const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
+            if (!currentLib["📦 내 커스텀 에셋"]) currentLib["📦 내 커스텀 에셋"] = []
+            
+            currentLib["📦 내 커스텀 에셋"].push({
+                name: name,
+                content: content
+            })
+            
+            window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
+            setLibraryData(currentLib)
+            setOpenCategories(prev => ({ ...prev, "📦 내 커스텀 에셋": true }))
+        } catch (e) {
+            alert("저장에 실패했습니다.")
+            console.error(e)
+        }
+    }
+
+    const toggleCategory = (cat: string) => {
+        setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat] }))
+    }
+
+    if (!isOpen) {
+        return (
+            <div style={{ position: 'absolute', right: 16, top: 64, zIndex: 9999, pointerEvents: 'all' }}>
+                <button 
+                    onClick={() => setIsOpen(true)}
+                    style={{ background: '#ffffff', color: '#1d1d1d', border: '1px solid #e5e7eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.1s', fontFamily: 'inherit', fontSize: '13px' }} onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} onMouseOut={e => e.currentTarget.style.background = '#ffffff'}
+                >
+                    📚 Library
+                </button>
+            </div>
+        )
     }
 
     return (
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <button 
-                onClick={() => setIsOpen(!isOpen)}
-                style={{ background: isOpen ? '#2563eb' : '#3b82f6', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', pointerEvents: 'all', fontSize: '13px', transition: 'all 0.1s' }}
-            >
-                📚 Library {isOpen ? '▼' : '▶'}
-            </button>
+        <div style={{ position: 'absolute', right: 16, top: 64, bottom: 64, pointerEvents: 'all', width: '320px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
+            <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>📚 UI Library</h3>
+                <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>✖</button>
+            </div>
+            
+            <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', background: 'white' }}>
+                <button 
+                    onClick={addSelectedToLibrary}
+                    style={{ width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(59,130,246,0.3)', transition: 'background 0.1s' }}
+                >
+                    ➕ 캔버스 선택 항목 추가
+                </button>
+            </div>
 
-            {isOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '300px', maxHeight: '500px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 999999, overflow: 'hidden' }}>
-                    <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ margin: 0, fontSize: '15px', color: '#111' }}>📚 UI Library</h3>
-                        <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px' }}>✖</button>
-                    </div>
-                    
-                    <div style={{ padding: '10px', borderBottom: '1px solid #e5e7eb', background: 'white' }}>
-                        <button 
-                            onClick={addSelectedToLibrary}
-                            style={{ width: '100%', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(59,130,246,0.3)' }}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#fcfcfc' }}>
+                {Object.entries(libraryData).map(([category, assets]) => (
+                    <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div 
+                            onClick={() => toggleCategory(category)}
+                            style={{ fontSize: '14px', fontWeight: 'bold', color: '#4b5563', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}
                         >
-                            ➕ 캔버스 선택 항목 추가
-                        </button>
-                    </div>
-
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '12px', background: '#fcfcfc' }}>
-                        {Object.entries(libraryData).map(([category, assets]) => (
-                            <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <div 
-                                    onClick={() => setOpenCategories(prev => ({ ...prev, [category]: !prev[category] }))}
-                                    style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}
-                                >
-                                    <span>{category}</span>
-                                    <span style={{ color: '#9ca3af' }}>{openCategories[category] ? '▼' : '▶'}</span>
-                                </div>
-                                {openCategories[category] && assets.map((asset, idx) => (
-                                    <div 
-                                        key={idx} 
-                                        onClick={() => insertAsset(asset)} 
-                                        style={{ padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#111', fontWeight: 500, transition: 'all 0.1s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-                                    >
-                                        {asset.name}
-                                    </div>
-                                ))}
+                            <span>{category}</span>
+                            <span style={{ color: '#9ca3af' }}>{openCategories[category] ? '▼' : '▶'}</span>
+                        </div>
+                        {openCategories[category] && assets.map((asset, idx) => (
+                            <div 
+                                key={idx} 
+                                onClick={() => insertAsset(asset)} 
+                                style={{ padding: '12px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#111', fontWeight: 500, transition: 'all 0.1s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                            >
+                                🧩 {asset.name}
                             </div>
                         ))}
                     </div>
-                </div>
-            )}
+                ))}
+            </div>
         </div>
     )
 }
 
 function CustomTopPanel() {
     return (
-        <div style={{ pointerEvents: 'all', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ pointerEvents: 'all', display: 'flex', gap: '6px', alignItems: 'center', padding: '8px', background: 'transparent' }}>
             <ShareButton />
             <LibrarySidebar />
         </div>
