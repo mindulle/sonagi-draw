@@ -43,17 +43,22 @@ function LibrarySidebar() {
         try {
             const saved = window.localStorage.getItem('sonagi_library_v2')
             if (saved) {
+                let parsed = JSON.parse(JSON.stringify(DEFAULT_LIBRARY))
+                try {
+                    const temp = JSON.parse(saved)
+                    if (typeof temp === 'object' && temp !== null) parsed = temp
+                } catch (e) { console.warn("Failed to parse library, using default", e) }
+
                 // Migrate old emoji keys if needed
-                let parsed = JSON.parse(saved)
                 if (parsed["📦 내 커스텀 에셋"]) {
                     parsed["내 커스텀 에셋"] = parsed["📦 내 커스텀 에셋"]
                     delete parsed["📦 내 커스텀 에셋"]
-                    window.localStorage.setItem('sonagi_library_v2', JSON.stringify(parsed))
+                    try { window.localStorage.setItem('sonagi_library_v2', JSON.stringify(parsed)) } catch (e) {}
                 }
                 setLibraryData(parsed)
             } else { 
                 setLibraryData(DEFAULT_LIBRARY)
-                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(DEFAULT_LIBRARY)) 
+                try { window.localStorage.setItem('sonagi_library_v2', JSON.stringify(DEFAULT_LIBRARY)) } catch (e) {}
             }
         } catch (e) { console.error("Local storage access failed", e) }
     }
@@ -70,8 +75,10 @@ function LibrarySidebar() {
         const selectedShapeIds = editor.getSelectedShapeIds()
         if (selectedShapeIds.length === 0) { alert("저장할 도형을 먼저 캔버스에서 선택해주세요!"); return }
 
-        const name = window.prompt("저장할 에셋의 이름을 입력하세요:", "새로운 에셋")
+        let name = window.prompt("저장할 에셋의 이름을 입력하세요:", "새로운 에셋")
         if (!name) return
+        name = name.trim()
+        if (!name) { alert("에셋 이름을 입력해주세요."); return }
 
         try {
             const content = editor.getContentFromCurrentPage(selectedShapeIds)
@@ -80,23 +87,56 @@ function LibrarySidebar() {
             const result = await editor.getSvgString(selectedShapeIds, { background: false })
             const svgString = result?.svg || ""
 
-            const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
-            if (!currentLib["내 커스텀 에셋"]) currentLib["내 커스텀 에셋"] = []
+            let currentLib = JSON.parse(JSON.stringify(DEFAULT_LIBRARY))
+            try {
+                const stored = window.localStorage.getItem('sonagi_library_v2')
+                if (stored) {
+                    const parsed = JSON.parse(stored)
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        currentLib = parsed
+                    }
+                }
+            } catch (e) { console.warn("Failed to parse library, using default", e) }
+
+            if (!currentLib["내 커스텀 에셋"] || !Array.isArray(currentLib["내 커스텀 에셋"])) currentLib["내 커스텀 에셋"] = []
             
             currentLib["내 커스텀 에셋"].push({ name: name, content: content, svgString: svgString })
-            window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
-            setLibraryData(currentLib)
-            setOpenCategories(prev => ({ ...prev, "내 커스텀 에셋": true }))
+            
+            try {
+                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
+                setLibraryData(currentLib)
+                setOpenCategories(prev => ({ ...prev, "내 커스텀 에셋": true }))
+            } catch (storageError: any) {
+                if (storageError.name === 'QuotaExceededError' || storageError.code === 22) {
+                    alert("로컬 스토리지 용량이 가득 찼습니다. 기존 에셋을 삭제한 후 다시 시도해주세요.")
+                } else {
+                    alert("에셋 저장 중 오류가 발생했습니다.")
+                }
+                console.error("Storage error:", storageError)
+            }
         } catch (e) { alert("저장에 실패했습니다."); console.error(e) }
     }
 
     const deleteAsset = (category: string, index: number) => {
         if (!confirm('이 에셋을 삭제하시겠습니까?')) return
-        const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
-        if (currentLib[category]) {
+        
+        let currentLib = JSON.parse(JSON.stringify(DEFAULT_LIBRARY))
+        try {
+            const stored = window.localStorage.getItem('sonagi_library_v2')
+            if (stored) {
+                const parsed = JSON.parse(stored)
+                if (typeof parsed === 'object' && parsed !== null) {
+                    currentLib = parsed
+                }
+            }
+        } catch (e) { console.warn("Failed to parse library during delete", e) }
+
+        if (currentLib[category] && Array.isArray(currentLib[category])) {
             currentLib[category].splice(index, 1)
-            window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
-            setLibraryData(currentLib)
+            try {
+                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
+                setLibraryData(currentLib)
+            } catch (e) { console.error("Failed to save after deletion", e) }
         }
     }
 
