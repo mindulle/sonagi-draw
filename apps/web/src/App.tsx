@@ -34,7 +34,7 @@ type LibraryData = Record<string, LibraryAsset[]>
 const DEFAULT_LIBRARY: LibraryData = { "📦 내 커스텀 에셋": [] }
 
 function LibrarySidebar() {
-    const editor = useEditor()
+    (window as any).editor = useEditor(); const editor = useEditor()
     const [isOpen, setIsOpen] = useState(false)
     const [libraryData, setLibraryData] = useState<LibraryData>({})
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "📦 내 커스텀 에셋": true })
@@ -89,29 +89,35 @@ function LibrarySidebar() {
         }
     }
 
+    const safeGroup = (ids: any[]) => {
+        if (ids.length > 1) {
+            try { editor.groupShapes(ids) } catch (e) { console.error(e) }
+        }
+    }
+
     const insertDefaultComponent = (type: string) => {
         const center = editor.getViewportPageBounds().center
         const bgId = createShapeId()
         
         if (type === 'button') {
             editor.createShapes([
-                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm' } },
+                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm', richText: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Button' }] }] } } },
             ] as any)
-            editor.groupShapes([bgId])
+            safeGroup([bgId])
         } else if (type === 'card') {
             const imgId = createShapeId()
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 300, h: 250 } },
                 { id: imgId, type: 'geo', x: center.x + 10, y: center.y + 10, props: { geo: 'rectangle', color: 'grey', fill: 'solid', w: 280, h: 140 } },
             ] as any)
-            editor.groupShapes([bgId, imgId])
+            safeGroup([bgId, imgId])
         } else if (type === 'modal') {
             const overlayId = createShapeId()
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 500, h: 300 } },
                 { id: overlayId, type: 'geo', x: center.x + 20, y: center.y + 220, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 460, h: 60 } },
             ] as any)
-            editor.groupShapes([bgId, overlayId])
+            safeGroup([bgId, overlayId])
         }
     }
 
