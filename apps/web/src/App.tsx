@@ -66,8 +66,8 @@ function LibrarySidebar() {
             if (!content) throw new Error("Failed to extract content")
 
             // Generate SVG Thumbnail
-            const result = await editor.getSvgString(selectedShapeIds)
-            const svgString = result?.svg || ""
+            const result = await editor.getSvgString(selectedShapeIds, { padding: 10, background: false })
+            const svgString = result?.svg?.replace('<svg ', '<svg width="100%" height="100%" viewBox="0 0 ' + (result.width || 100) + ' ' + (result.height || 100) + '" style="max-height: 100px;" ') || ""
 
             const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
             if (!currentLib["📦 내 커스텀 에셋"]) currentLib["📦 내 커스텀 에셋"] = []
