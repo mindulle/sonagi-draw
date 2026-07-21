@@ -106,7 +106,7 @@ function LibrarySidebar() {
 
     if (!isOpen) {
         return (
-            <div style={{ position: 'absolute', right: 16, top: 64, zIndex: 9999, pointerEvents: 'all' }}>
+            <div style={{ position: 'absolute', left: 16, top: 64, zIndex: 9999, pointerEvents: 'all' }}>
                 <button 
                     onClick={() => setIsOpen(true)}
                     style={{ background: '#ffffff', color: '#1d1d1d', border: '1px solid #e5e7eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.1s', fontFamily: 'inherit', fontSize: '13px' }} onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} onMouseOut={e => e.currentTarget.style.background = '#ffffff'}
@@ -118,7 +118,7 @@ function LibrarySidebar() {
     }
 
     return (
-        <div style={{ position: 'absolute', right: 16, top: 64, bottom: 64, pointerEvents: 'all', width: '320px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', left: 16, top: 64, bottom: 64, pointerEvents: 'all', width: '320px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
             <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '16px', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>📚 UI Library</h3>
                 <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>✖</button>
@@ -159,14 +159,23 @@ function LibrarySidebar() {
     )
 }
 
-function CustomTopPanel() {
+
+function CustomSharePanel() {
     return (
-        <div style={{ pointerEvents: 'all', display: 'flex', gap: '6px', alignItems: 'center', padding: '8px', background: 'transparent' }}>
+        <div style={{ pointerEvents: 'all', display: 'flex', gap: '6px', alignItems: 'center' }}>
             <ShareButton />
-            <LibrarySidebar />
         </div>
     )
 }
+
+function InFrontWrapper() {
+    return (
+        <>
+            <LibrarySidebar />
+        </>
+    )
+}
+
 
 const multiplayerAssets: TLAssetStore = {
 	async upload(_asset, file) {
@@ -214,7 +223,7 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw store={storeSync} components={{ SharePanel: CustomTopPanel }} />
+            <Tldraw store={storeSync} components={{ SharePanel: CustomSharePanel, InFrontOfTheCanvas: InFrontWrapper }} />
         </div>
     )
 }
