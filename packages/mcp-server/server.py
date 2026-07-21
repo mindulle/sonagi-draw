@@ -259,17 +259,45 @@ def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: 
     return f"✅ 무드보드 레이아웃 완료 (Images: {len(image_urls)}, Palette: {len(palette_hex)})"
 
 @mcp.tool()
-def add_sticky_note(room_id: str, text: str, x: float, y: float, color: str = "yellow") -> str:
+def add_sticky_note(room_id: str, text: str, x: float, y: float, color: str = "yellow", page_id: str = "page:wireframe") -> str:
     """
     [Phase 3] 캔버스 특정 위치에 피드백이나 코멘트를 남길 수 있는 포스트잇(Sticky Note)을 붙입니다.
     color는 tldraw 지원 색상(yellow, blue, green, red, black, white 등) 중 하나여야 합니다.
     """
+    if not room_id or not all(c.isalnum() or c in "-_" for c in room_id):
+        return "❌ 오류: 올바르지 않은 Room ID 형식입니다."
+
     db_path = get_db_path(room_id)
     if not os.path.exists(db_path):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
         
-    add_shape_to_db(db_path, create_note_shape(x, y, text, color=color))
-    return f"✅ 포스트잇 부착 완료: Room {room_id} (x:{x}, y:{y}, text:'{text}')"
+    add_shape_to_db(db_path, create_note_shape(x, y, text, color=color, parent_id=page_id))
+    return f"✅ 포스트잇 부착 완료: Room {room_id} (x:{x}, y:{y}, text:'{text}', page:'{page_id}')"
+
+@mcp.tool()
+def add_wireframe_box(room_id: str, x: float, y: float, w: float, h: float, text: str = "", page_id: str = "page:wireframe") -> str:
+    """
+    캔버스의 특정 페이지에 기본적인 와이어프레임 박스(회색 윤곽선)를 그립니다. (UI/UX 뼈대 잡기용)
+    선택적으로 박스 중앙에 들어갈 텍스트(예: "네비게이션", "메인 버튼")를 지정할 수 있습니다.
+    """
+    if not room_id or not all(c.isalnum() or c in "-_" for c in room_id):
+        return "❌ 오류: 올바르지 않은 Room ID 형식입니다."
+
+    if w <= 0 or h <= 0:
+        return "❌ 오류: 와이어프레임 박스의 너비(w)와 높이(h)는 0보다 커야 합니다."
+
+    db_path = get_db_path(room_id)
+    if not os.path.exists(db_path):
+        return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
+        
+    add_shape_to_db(db_path, create_rect_shape(x, y, w, h, color="grey", fill="none", parent_id=page_id))
+    
+    if text:
+        text_x = x + (w / 2) - 100
+        text_y = y + (h / 2) - 20
+        add_shape_to_db(db_path, create_text_shape(text_x, text_y, text, color="black", size="m", parent_id=page_id))
+        
+    return f"✅ 와이어프레임 박스 생성 완료: Room {room_id} (x:{x}, y:{y}, w:{w}, h:{h}, text:'{text}', page:'{page_id}')"
 
 @mcp.tool()
 def get_room_state(room_id: str, page_id: Optional[str] = None) -> Dict[str, Any]:
