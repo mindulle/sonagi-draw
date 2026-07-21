@@ -1,5 +1,5 @@
 import { useSync } from '@tldraw/sync'
-import { Tldraw, TLAssetStore, uniqueId, useEditor, createShapeId } from 'tldraw'
+import { Tldraw, TLAssetStore, uniqueId, useEditor, createShapeId, TLContent } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
 
@@ -25,9 +25,69 @@ function ShareButton() {
     )
 }
 
+interface CustomLibraryItem {
+    id: string;
+    name: string;
+    content: TLContent;
+}
+
 function LibraryPanel() {
     const editor = useEditor()
     const [isOpen, setIsOpen] = useState(false)
+    const [customItems, setCustomItems] = useState<CustomLibraryItem[]>([])
+
+    useEffect(() => {
+        const saved = localStorage.getItem('sonagi-draw-custom-library')
+        if (saved) {
+            try {
+                setCustomItems(JSON.parse(saved))
+            } catch (e) {
+                console.error('Failed to parse custom library', e)
+            }
+        }
+    }, [])
+
+    const saveCustomItems = (items: CustomLibraryItem[]) => {
+        setCustomItems(items)
+        localStorage.setItem('sonagi-draw-custom-library', JSON.stringify(items))
+    }
+
+    const handleAddSelected = () => {
+        const selectedIds = editor.getSelectedShapeIds()
+        if (selectedIds.length === 0) {
+            alert('저장할 도형을 선택해주세요.')
+            return
+        }
+
+        const name = prompt('라이브러리 아이템 이름을 입력해주세요:', `Custom Asset ${customItems.length + 1}`)
+        if (!name) return
+
+        const content = editor.getContentFromCurrentPage(selectedIds)
+        if (!content) return
+
+        const newItem: CustomLibraryItem = {
+            id: uniqueId(),
+            name,
+            content
+        }
+
+        saveCustomItems([...customItems, newItem])
+        alert(`'${name}' 이(가) 라이브러리에 추가되었습니다.`)
+    }
+
+    const insertCustomComponent = (item: CustomLibraryItem) => {
+        editor.putContentOntoCurrentPage(item.content, {
+            point: editor.getViewportPageBounds().center,
+            select: true
+        })
+    }
+
+    const removeCustomComponent = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation()
+        if (confirm('이 에셋을 삭제하시겠습니까?')) {
+            saveCustomItems(customItems.filter(item => item.id !== id))
+        }
+    }
 
     const insertComponent = (type: string) => {
         const center = editor.getViewportPageBounds().center
@@ -65,15 +125,45 @@ function LibraryPanel() {
             </button>
             {isOpen && (
                 <div style={{ background: 'white', border: '1px solid #ddd', borderRadius: '8px', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>Components</div>
+                    <button 
+                        onClick={handleAddSelected}
+                        style={{ padding: '8px', background: '#e0f2fe', color: '#1e40af', border: '1px dashed #7dd3fc', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '4px' }}
+                    >
+                        ➕ 선택 항목 저장
+                    </button>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>Defaults</div>
                     <button onClick={() => insertComponent('button')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>✨ Primary Button</button>
                     <button onClick={() => insertComponent('card')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>🖼️ Content Card</button>
                     <button onClick={() => insertComponent('modal')} style={{ padding: '8px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>🪟 Modal Window</button>
+                    
+                    {customItems.length > 0 && (
+                        <>
+                            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginTop: '8px', marginBottom: '4px' }}>My Library</div>
+                            {customItems.map(item => (
+                                <div key={item.id} style={{ display: 'flex', gap: '4px' }}>
+                                    <button 
+                                        onClick={() => insertCustomComponent(item)} 
+                                        style={{ flex: 1, padding: '8px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+                                    >
+                                        ⭐ {item.name}
+                                    </button>
+                                    <button 
+                                        onClick={(e) => removeCustomComponent(e, item.id)}
+                                        style={{ padding: '8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer' }}
+                                        title="삭제"
+                                    >
+                                        ❌
+                                    </button>
+                                </div>
+                            ))}
+                        </>
+                    )}
                 </div>
             )}
         </div>
     )
 }
+
 
 function CustomTopPanel() {
     return (
