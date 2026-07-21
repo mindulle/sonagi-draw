@@ -3,7 +3,7 @@ import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId } f
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
-import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent } from './libraryTemplates'
+import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent, toRichText } from './libraryTemplates'
 
 const WORKER_URL = window.location.origin
 
@@ -167,7 +167,7 @@ function LibrarySidebar() {
         
         if (type === 'button') {
             editor.createShapes([
-                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm', text: 'Button' } },
+                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm', richText: toRichText('Button') } },
             ] as any)
             safeGroup([bgId])
         } else if (type === 'card') {
