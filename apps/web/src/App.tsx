@@ -2,6 +2,7 @@ import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
+import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent } from './libraryTemplates'
 
 const WORKER_URL = window.location.origin
 
@@ -158,6 +159,42 @@ function LibrarySidebar() {
                         <button onClick={() => insertDefaultComponent('button')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>✨ Primary Button</button>
                         <button onClick={() => insertDefaultComponent('card')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🖼️ Content Card</button>
                         <button onClick={() => insertDefaultComponent('modal')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🪟 Modal Window</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
+                            📱 레이아웃 & 디바이스
+                        </div>
+                        <button onClick={() => insertLayoutComponent(editor, 'mobile-frame')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📱 모바일 프레임 (목업)</button>
+                        <button onClick={() => insertLayoutComponent(editor, 'browser-window')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🌐 웹 브라우저 창</button>
+                        <button onClick={() => insertLayoutComponent(editor, 'dashboard-skeleton')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📊 대시보드 뼈대</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
+                            🧩 자주 쓰이는 UX 패턴
+                        </div>
+                        <button onClick={() => insertUXPatternComponent(editor, 'auth-form')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🔐 로그인 / 회원가입 폼</button>
+                        <button onClick={() => insertUXPatternComponent(editor, 'pricing-table')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>💳 가격 정책 표 (3단)</button>
+                        <button onClick={() => insertUXPatternComponent(editor, 'feed-list')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📋 피드 & 리스트 뷰</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
+                            🗺️ 유저 여정 & 다이어그램
+                        </div>
+                        <button onClick={() => insertDiagramComponent(editor, 'user-flow')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>➡️ 유저 플로우 노드</button>
+                        <button onClick={() => insertDiagramComponent(editor, 'sitemap')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🌳 사이트맵 뼈대</button>
+                        <button onClick={() => insertDiagramComponent(editor, 'sticky-cluster')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📌 아이디어 보드 (포스트잇)</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563', paddingBottom: '4px', borderBottom: '2px solid #e5e7eb' }}>
+                            💬 어노테이션 & 마커
+                        </div>
+                        <button onClick={() => insertAnnotationComponent(editor, 'cursor-pointer')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>🖱️ 마우스 커서 / 포인터</button>
+                        <button onClick={() => insertAnnotationComponent(editor, 'comment-pin')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📍 코멘트 핀 (숫자 뱃지)</button>
+                        <button onClick={() => insertAnnotationComponent(editor, 'measurement-line')} style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>📏 측정선 (Redlines)</button>
                     </div>
 
                     {Object.entries(libraryData).map(([category, assets]) => (
