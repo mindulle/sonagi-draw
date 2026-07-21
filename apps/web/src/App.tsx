@@ -11,6 +11,18 @@ function generateRoomId() {
     return Math.random().toString(36).substring(2, 10)
 }
 
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 768px)')
+        const handleChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+        
+        mql.addEventListener('change', handleChange)
+        return () => mql.removeEventListener('change', handleChange)
+    }, [])
+    return isMobile
+}
+
 function ShareButton() {
     const [copied, setCopied] = useState(false)
     return (
@@ -35,6 +47,7 @@ type LibraryData = Record<string, LibraryAsset[]>
 const DEFAULT_LIBRARY: LibraryData = { "내 커스텀 에셋": [] }
 
 function LibrarySidebar() {
+    const isMobile = useIsMobile()
     const editor = useEditor()
     const [isOpen, setIsOpen] = useState(false)
     const [libraryData, setLibraryData] = useState<LibraryData>({})
@@ -69,6 +82,7 @@ function LibrarySidebar() {
     const insertAsset = (asset: LibraryAsset) => {
         try {
             editor.putContentOntoCurrentPage(asset.content, { point: editor.getViewportPageBounds().center, select: true })
+            if (isMobile) setIsOpen(false)
         } catch (e) { console.error("Insert failed", e); alert("에셋 삽입 중 오류가 발생했습니다.") }
     }
 
@@ -237,7 +251,24 @@ function LibrarySidebar() {
             >
                 라이브러리 ▼
             </button>
-            <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px', width: '320px', maxHeight: 'calc(100vh - 100px)', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 -10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
+            <div style={isMobile ? {
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                width: '100%',
+                maxHeight: '60vh',
+                background: 'white',
+                borderTop: '1px solid #e5e7eb',
+                borderTopLeftRadius: '16px',
+                borderTopRightRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 -10px 25px rgba(0,0,0,0.2)',
+                zIndex: 99999,
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+            } : { position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px', width: '320px', maxHeight: 'calc(100vh - 100px)', background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 -10px 25px rgba(0,0,0,0.15)', zIndex: 9999, overflow: 'hidden' }}>
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ margin: 0, fontSize: '15px', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>UI Library</h3>
                     <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>✕</button>
@@ -267,7 +298,10 @@ function LibrarySidebar() {
                             {openCategories[category] && items.map((item, idx) => (
                                 <button 
                                     key={idx}
-                                    onClick={() => item.insert(editor, item.type)} 
+                                    onClick={() => {
+                                        item.insert(editor, item.type)
+                                        if (isMobile) setIsOpen(false)
+                                    }} 
                                     style={{ padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontSize: '12px', fontWeight: 500, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
                                 >
                                     {item.label}
@@ -322,8 +356,9 @@ function LibrarySidebar() {
 }
 
 function InFrontWrapper() {
+    const isMobile = useIsMobile()
     return (
-        <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 'calc(56px + env(safe-area-inset-top, 0px))' : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
             <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
                 <ShareButton />
                 <LibrarySidebar />
