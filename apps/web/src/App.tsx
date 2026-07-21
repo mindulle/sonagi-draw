@@ -2,6 +2,7 @@ import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent } from './libraryTemplates'
 
 const WORKER_URL = window.location.origin
@@ -34,7 +35,7 @@ type LibraryData = Record<string, LibraryAsset[]>
 const DEFAULT_LIBRARY: LibraryData = { "내 커스텀 에셋": [] }
 
 function LibrarySidebar() {
-    (window as any).editor = useEditor(); const editor = useEditor()
+    const editor = useEditor()
     const [isOpen, setIsOpen] = useState(false)
     const [libraryData, setLibraryData] = useState<LibraryData>({})
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "내 커스텀 에셋": true, "기본 UI 컴포넌트": true })
@@ -152,7 +153,7 @@ function LibrarySidebar() {
         
         if (type === 'button') {
             editor.createShapes([
-                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm', richText: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Button' }] }] } } },
+                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 140, h: 48, size: 'm', text: 'Button' } },
             ] as any)
             safeGroup([bgId])
         } else if (type === 'card') {
@@ -305,7 +306,7 @@ function LibrarySidebar() {
                                     </div>
                                     {asset.svgString && (
                                         <div 
-                                            dangerouslySetInnerHTML={{ __html: asset.svgString }} 
+                                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(asset.svgString) }} 
                                             className="library-svg-preview"
                                             style={{ width: '100%', background: '#f3f4f6', borderRadius: '4px', padding: '4px', boxSizing: 'border-box', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', maxHeight: '120px' }} 
                                         />
