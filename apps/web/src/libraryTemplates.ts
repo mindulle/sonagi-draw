@@ -13,7 +13,7 @@ const safeGroup = (editor: Editor, ids: any[]) => {
 export const toRichText = (text: string) => {
     return {
         type: 'doc',
-        content: text.split('\n').map(line => line ? { type: 'paragraph', content: [{ type: 'text', text: line }] } : { type: 'paragraph' })
+        content: text.split('\n').map(line => line ? { type: 'paragraph', content: [{ type: 'text', text: line }] } : { type: 'paragraph', content: [] })
     }
 }
 
