@@ -27,7 +27,7 @@ function ShareButton() {
     )
 }
 
-type LibraryAsset = { name: string; content: TLContent }
+type LibraryAsset = { name: string; content: TLContent; svgString?: string }
 type LibraryData = Record<string, LibraryAsset[]>
 
 const DEFAULT_LIBRARY: LibraryData = { "📦 내 커스텀 에셋": [] }
@@ -54,7 +54,7 @@ function LibrarySidebar() {
         } catch (e) { console.error("Insert failed", e); alert("에셋 삽입 중 오류가 발생했습니다.") }
     }
 
-    const addSelectedToLibrary = () => {
+    const addSelectedToLibrary = async () => {
         const selectedShapeIds = editor.getSelectedShapeIds()
         if (selectedShapeIds.length === 0) { alert("저장할 도형을 먼저 캔버스에서 선택해주세요!"); return }
 
@@ -65,10 +65,14 @@ function LibrarySidebar() {
             const content = editor.getContentFromCurrentPage(selectedShapeIds)
             if (!content) throw new Error("Failed to extract content")
 
+            // Generate SVG Thumbnail
+            const result = await editor.getSvgString(selectedShapeIds)
+            const svgString = result?.svg || ""
+
             const currentLib = JSON.parse(window.localStorage.getItem('sonagi_library_v2') || JSON.stringify(DEFAULT_LIBRARY))
             if (!currentLib["📦 내 커스텀 에셋"]) currentLib["📦 내 커스텀 에셋"] = []
             
-            currentLib["📦 내 커스텀 에셋"].push({ name: name, content: content })
+            currentLib["📦 내 커스텀 에셋"].push({ name: name, content: content, svgString: svgString })
             window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
             setLibraryData(currentLib)
             setOpenCategories(prev => ({ ...prev, "📦 내 커스텀 에셋": true }))
@@ -116,9 +120,15 @@ function LibrarySidebar() {
                                     <div 
                                         key={idx} 
                                         onClick={() => insertAsset(asset)} 
-                                        style={{ padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#111', fontWeight: 500, transition: 'all 0.1s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                                        style={{ padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#111', fontWeight: 500, transition: 'all 0.1s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}
                                     >
-                                        🧩 {asset.name}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🧩 {asset.name}</div>
+                                        {asset.svgString && (
+                                            <div 
+                                                dangerouslySetInnerHTML={{ __html: asset.svgString }} 
+                                                style={{ width: '100%', background: '#f3f4f6', borderRadius: '4px', padding: '4px', boxSizing: 'border-box', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', maxHeight: '120px' }} 
+                                            />
+                                        )}
                                     </div>
                                 ))}
                             </div>
