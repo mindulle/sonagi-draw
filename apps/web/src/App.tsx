@@ -4,12 +4,13 @@ import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
+import { WiredDataTableShapeUtil } from './WiredDataTableShape'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent, toRichText } from './libraryTemplates'
 
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const WORKER_URL = window.location.origin
 
@@ -171,6 +172,11 @@ function LibrarySidebar() {
                 { id: bgId, type: 'wired-progress', x: center.x, y: center.y, props: { w: 300, h: 40, progress: 60, color: '#3b82f6' } }
             ] as any)
             editor.select(bgId)
+        } else if (type === 'wired-data-table') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-data-table', x: center.x, y: center.y, props: { rows: 3, cols: 3, cellWidth: 120, cellHeight: 40, data: {} } }
+            ] as any)
+            editor.select(bgId)
         }
     }
 
@@ -181,7 +187,8 @@ function LibrarySidebar() {
                 { label: "Primary Button", type: "button", insert: insertDefaultComponent },
                 { label: "Content Card", type: "card", insert: insertDefaultComponent },
                 { label: "Modal Window", type: "modal", insert: insertDefaultComponent },
-                
+                { label: "Wired Progress (Smart)", type: "wired-progress", insert: insertDefaultComponent },
+                { label: "Wired Data Table (Smart)", type: "wired-data-table", insert: insertDefaultComponent }
             ]
         },
         {
