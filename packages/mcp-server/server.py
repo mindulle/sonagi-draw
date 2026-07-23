@@ -86,7 +86,7 @@ def init_db(db_path: str, template_name: str = "default"):
         # 멀티 페이지(3-Tabs) 주입
         ts = int(time.time() * 1000)
         pages = [
-            ("page:page", json.dumps({"meta":{},"id":"page:page","name":"🎨 Moodboard","index":"a1","typeName":"page"}).encode('utf-8'), ts),
+            ("page:moodboard", json.dumps({"meta":{},"id":"page:moodboard","name":"🎨 Moodboard","index":"a1","typeName":"page"}).encode('utf-8'), ts),
             ("page:wireframe", json.dumps({"meta":{},"id":"page:wireframe","name":"📐 Wireframe & UI Kit","index":"a2","typeName":"page"}).encode('utf-8'), ts),
             ("page:journey", json.dumps({"meta":{},"id":"page:journey","name":"🗺️ User Journey","index":"a3","typeName":"page"}).encode('utf-8'), ts)
         ]
@@ -120,7 +120,7 @@ def to_rich_text(text: str) -> dict:
             })
     return {"type": "doc", "content": content}
 
-def create_text_shape(x: float, y: float, text: str, color: str = "black", size: str = "m", parent_id: str = "page:page"):
+def create_text_shape(x: float, y: float, text: str, color: str = "black", size: str = "m", parent_id: str = "page:moodboard"):
     return {
         "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
         "id": f"shape:{uuid.uuid4()}", "type": "text", 
@@ -128,7 +128,7 @@ def create_text_shape(x: float, y: float, text: str, color: str = "black", size:
         "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
     }
 
-def create_rect_shape(x: float, y: float, w: float, h: float, color: str = "black", fill: str = "solid", parent_id: str = "page:page"):
+def create_rect_shape(x: float, y: float, w: float, h: float, color: str = "black", fill: str = "solid", parent_id: str = "page:moodboard"):
     return {
         "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
         "id": f"shape:{uuid.uuid4()}", "type": "geo", 
@@ -136,7 +136,7 @@ def create_rect_shape(x: float, y: float, w: float, h: float, color: str = "blac
         "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
     }
 
-def create_note_shape(x: float, y: float, text: str, color: str = "yellow", size: str = "m", parent_id: str = "page:page"):
+def create_note_shape(x: float, y: float, text: str, color: str = "yellow", size: str = "m", parent_id: str = "page:moodboard"):
     return {
         "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
         "id": f"shape:{uuid.uuid4()}", "type": "note", 
@@ -144,7 +144,7 @@ def create_note_shape(x: float, y: float, text: str, color: str = "yellow", size
         "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
     }
 
-def add_image_with_asset(db_path: str, x: float, y: float, w: float, h: float, url: str, parent_id: str = "page:page"):
+def add_image_with_asset(db_path: str, x: float, y: float, w: float, h: float, url: str, parent_id: str = "page:moodboard"):
     # 외부 이미지를 CDN으로 이주 (Hotlinking 방어)
     cdn_url = upload_image_to_cdn(url)
     
@@ -187,9 +187,9 @@ def create_room(title: str, issue_id: Optional[str] = None, template_name: str =
     
     if template_name == "default":
         # Page 1: Moodboard 타이틀
-        add_shape_to_db(db_path, create_text_shape(100, 50, f"🎨 {title}", size="xl", parent_id="page:page"))
+        add_shape_to_db(db_path, create_text_shape(100, 50, f"🎨 {title}", size="xl", parent_id="page:moodboard"))
         if issue_id:
-            add_shape_to_db(db_path, create_text_shape(100, 120, f"🔗 Associated with Issue: {issue_id}", color="blue", size="s", parent_id="page:page"))
+            add_shape_to_db(db_path, create_text_shape(100, 120, f"🔗 Associated with Issue: {issue_id}", color="blue", size="s", parent_id="page:moodboard"))
         
         # Page 2: Wireframe & UI Kit 초기 세팅
         generate_wireframe_kit(room_id)
