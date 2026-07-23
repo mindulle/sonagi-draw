@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
+import { WiredToggleShapeUtil } from './WiredToggleShape'
+import { WiredCheckboxShapeUtil } from './WiredCheckboxShape'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent, toRichText } from './libraryTemplates'
 
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const WORKER_URL = window.location.origin
 
@@ -177,6 +179,16 @@ function LibrarySidebar() {
                 { id: bgId, type: 'wired-data-table', x: center.x, y: center.y, props: { rows: 3, cols: 3, cellWidth: 120, cellHeight: 40, data: {} } }
             ] as any)
             editor.select(bgId)
+        } else if (type === 'wired-toggle') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-toggle', x: center.x, y: center.y, props: { w: 60, h: 30, isOn: false } }
+            ] as any)
+            editor.select(bgId)
+        } else if (type === 'wired-checkbox') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-checkbox', x: center.x, y: center.y, props: { w: 120, h: 30, isChecked: false, label: "Check me" } }
+            ] as any)
+            editor.select(bgId)
         }
     }
 
@@ -188,7 +200,9 @@ function LibrarySidebar() {
                 { label: "Content Card", type: "card", insert: insertDefaultComponent },
                 { label: "Modal Window", type: "modal", insert: insertDefaultComponent },
                 { label: "Wired Progress (Smart)", type: "wired-progress", insert: insertDefaultComponent },
-                { label: "Wired Data Table (Smart)", type: "wired-data-table", insert: insertDefaultComponent }
+                { label: "Wired Data Table (Smart)", type: "wired-data-table", insert: insertDefaultComponent },
+                { label: "Wired Toggle (Smart)", type: "wired-toggle", insert: insertDefaultComponent },
+                { label: "Wired Checkbox (Smart)", type: "wired-checkbox", insert: insertDefaultComponent }
             ]
         },
         {
