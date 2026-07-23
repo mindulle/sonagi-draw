@@ -1,12 +1,15 @@
 import { useSync } from '@tldraw/sync'
-import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId } from 'tldraw'
+import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
+import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent, toRichText } from './libraryTemplates'
 
 
 
+
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const WORKER_URL = window.location.origin
 
@@ -411,6 +414,7 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                 store={storeSync} 
                 components={{ SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
                 assetUrls={customAssetUrls}
+                shapeUtils={customShapeUtils}
                 
             />
         </div>
