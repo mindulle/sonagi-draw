@@ -36,23 +36,25 @@ function LibraryPanel() {
     const [isOpen, setIsOpen] = useState(false)
     const [customItems, setCustomItems] = useState<CustomLibraryItem[]>([])
 
-    useEffect(() => {
-        const saved = localStorage.getItem('sonagi-draw-custom-library')
-        if (saved) {
-            try {
-                setCustomItems(JSON.parse(saved))
-            } catch (e) {
-                console.error('Failed to parse custom library', e)
+    const fetchLibrary = async () => {
+        try {
+            const res = await fetch(`${WORKER_URL}/library`)
+            if (res.ok) {
+                const data = await res.json()
+                setCustomItems(data)
             }
+        } catch (e) {
+            console.error('Failed to fetch custom library', e)
         }
-    }, [])
-
-    const saveCustomItems = (items: CustomLibraryItem[]) => {
-        setCustomItems(items)
-        localStorage.setItem('sonagi-draw-custom-library', JSON.stringify(items))
     }
 
-    const handleAddSelected = () => {
+    useEffect(() => {
+        if (isOpen) {
+            fetchLibrary()
+        }
+    }, [isOpen])
+
+    const handleAddSelected = async () => {
         const selectedIds = editor.getSelectedShapeIds()
         if (selectedIds.length === 0) {
             alert('저장할 도형을 선택해주세요.')
@@ -71,8 +73,16 @@ function LibraryPanel() {
             content
         }
 
-        saveCustomItems([...customItems, newItem])
-        alert(`'${name}' 이(가) 라이브러리에 추가되었습니다.`)
+        try {
+            await fetch(`${WORKER_URL}/library`, {
+                method: 'POST',
+                body: JSON.stringify(newItem)
+            })
+            setCustomItems([...customItems, newItem])
+            alert(`'${name}' 이(가) 라이브러리에 추가되었습니다.`)
+        } catch (e) {
+            alert('저장에 실패했습니다.')
+        }
     }
 
     const insertCustomComponent = (item: CustomLibraryItem) => {
@@ -82,10 +92,15 @@ function LibraryPanel() {
         })
     }
 
-    const removeCustomComponent = (e: React.MouseEvent, id: string) => {
+    const removeCustomComponent = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
         if (confirm('이 에셋을 삭제하시겠습니까?')) {
-            saveCustomItems(customItems.filter(item => item.id !== id))
+            try {
+                await fetch(`${WORKER_URL}/library/${id}`, { method: 'DELETE' })
+                setCustomItems(customItems.filter(item => item.id !== id))
+            } catch (e) {
+                alert('삭제에 실패했습니다.')
+            }
         }
     }
 
