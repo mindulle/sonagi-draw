@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent, toRichText } from './libraryTemplates'
 
+
+
+
 const WORKER_URL = window.location.origin
 
 function generateRoomId() {
@@ -53,28 +56,19 @@ function LibrarySidebar() {
     const [libraryData, setLibraryData] = useState<LibraryData>({})
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "내 커스텀 에셋": true, "기본 UI 컴포넌트": true })
 
-    const loadLibrary = () => {
+    const loadLibrary = async () => {
         try {
-            const saved = window.localStorage.getItem('sonagi_library_v2')
-            if (saved) {
-                let parsed = JSON.parse(JSON.stringify(DEFAULT_LIBRARY))
-                try {
-                    const temp = JSON.parse(saved)
-                    if (typeof temp === 'object' && temp !== null) parsed = temp
-                } catch (e) { console.warn("Failed to parse library, using default", e) }
-
-                // Migrate old emoji keys if needed
-                if (parsed["📦 내 커스텀 에셋"]) {
-                    parsed["내 커스텀 에셋"] = parsed["📦 내 커스텀 에셋"]
-                    delete parsed["📦 내 커스텀 에셋"]
-                    try { window.localStorage.setItem('sonagi_library_v2', JSON.stringify(parsed)) } catch (e) {}
-                }
-                setLibraryData(parsed)
-            } else { 
+            const res = await fetch(`${WORKER_URL}/library`)
+            if (res.ok) {
+                const data = await res.json()
+                setLibraryData({ "내 커스텀 에셋": data })
+            } else {
                 setLibraryData(DEFAULT_LIBRARY)
-                try { window.localStorage.setItem('sonagi_library_v2', JSON.stringify(DEFAULT_LIBRARY)) } catch (e) {}
             }
-        } catch (e) { console.error("Local storage access failed", e) }
+        } catch (e) {
+            console.error("Local storage access failed", e)
+            setLibraryData(DEFAULT_LIBRARY)
+        }
     }
 
     useEffect(() => { loadLibrary() }, [])
@@ -102,57 +96,42 @@ function LibrarySidebar() {
             const result = await editor.getSvgString(selectedShapeIds, { background: false })
             const svgString = result?.svg || ""
 
-            let currentLib = JSON.parse(JSON.stringify(DEFAULT_LIBRARY))
-            try {
-                const stored = window.localStorage.getItem('sonagi_library_v2')
-                if (stored) {
-                    const parsed = JSON.parse(stored)
-                    if (typeof parsed === 'object' && parsed !== null) {
-                        currentLib = parsed
-                    }
-                }
-            } catch (e) { console.warn("Failed to parse library, using default", e) }
+            const newItem = { id: uniqueId(), name, content, svgString }
 
-            if (!currentLib["내 커스텀 에셋"] || !Array.isArray(currentLib["내 커스텀 에셋"])) currentLib["내 커스텀 에셋"] = []
-            
-            currentLib["내 커스텀 에셋"].push({ name: name, content: content, svgString: svgString })
-            
-            try {
-                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
-                setLibraryData(currentLib)
-                setOpenCategories(prev => ({ ...prev, "내 커스텀 에셋": true }))
-            } catch (storageError: any) {
-                if (storageError.name === 'QuotaExceededError' || storageError.code === 22) {
-                    alert("로컬 스토리지 용량이 가득 찼습니다. 기존 에셋을 삭제한 후 다시 시도해주세요.")
-                } else {
-                    alert("에셋 저장 중 오류가 발생했습니다.")
-                }
-                console.error("Storage error:", storageError)
-            }
+            const res = await fetch(`${WORKER_URL}/library`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newItem)
+            })
+            if (!res.ok) throw new Error('서버 응답 오류')
+
+            setLibraryData(prev => ({
+                ...prev,
+                "내 커스텀 에셋": [...(prev["내 커스텀 에셋"] || []), newItem]
+            }))
+            setOpenCategories(prev => ({ ...prev, "내 커스텀 에셋": true }))
         } catch (e) { alert("저장에 실패했습니다."); console.error(e) }
     }
 
-    const deleteAsset = (category: string, index: number) => {
+    const deleteAsset = async (category: string, index: number) => {
         if (!confirm('이 에셋을 삭제하시겠습니까?')) return
         
-        let currentLib = JSON.parse(JSON.stringify(DEFAULT_LIBRARY))
-        try {
-            const stored = window.localStorage.getItem('sonagi_library_v2')
-            if (stored) {
-                const parsed = JSON.parse(stored)
-                if (typeof parsed === 'object' && parsed !== null) {
-                    currentLib = parsed
-                }
-            }
-        } catch (e) { console.warn("Failed to parse library during delete", e) }
-
-        if (currentLib[category] && Array.isArray(currentLib[category])) {
-            currentLib[category].splice(index, 1)
+        const asset = libraryData[category]?.[index] as any
+        if (asset && asset.id) {
             try {
-                window.localStorage.setItem('sonagi_library_v2', JSON.stringify(currentLib))
-                setLibraryData(currentLib)
-            } catch (e) { console.error("Failed to save after deletion", e) }
+                const res = await fetch(`${WORKER_URL}/library/${asset.id}`, { method: 'DELETE' })
+                if (!res.ok) throw new Error('서버 응답 오류')
+            } catch (e) {
+                alert('삭제에 실패했습니다.')
+                return
+            }
         }
+
+        setLibraryData(prev => {
+            const updated = prev[category] ? [...prev[category]] : []
+            updated.splice(index, 1)
+            return { ...prev, [category]: updated }
+        })
     }
 
     const safeGroup = (ids: any[]) => {
@@ -184,6 +163,11 @@ function LibrarySidebar() {
                 { id: overlayId, type: 'geo', x: center.x + 20, y: center.y + 220, props: { geo: 'rectangle', color: 'blue', fill: 'semi', w: 460, h: 60 } },
             ] as any)
             safeGroup([bgId, overlayId])
+        } else if (type === 'wired-progress') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-progress', x: center.x, y: center.y, props: { w: 300, h: 40, progress: 60, color: '#3b82f6' } }
+            ] as any)
+            editor.select(bgId)
         }
     }
 
@@ -193,7 +177,8 @@ function LibrarySidebar() {
             items: [
                 { label: "Primary Button", type: "button", insert: insertDefaultComponent },
                 { label: "Content Card", type: "card", insert: insertDefaultComponent },
-                { label: "Modal Window", type: "modal", insert: insertDefaultComponent }
+                { label: "Modal Window", type: "modal", insert: insertDefaultComponent },
+                
             ]
         },
         {
@@ -426,6 +411,7 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                 store={storeSync} 
                 components={{ SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
                 assetUrls={customAssetUrls}
+                
             />
         </div>
     )

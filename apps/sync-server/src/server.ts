@@ -89,6 +89,43 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	// To enable blob storage for assets, we add a simple endpoint supporting PUT and GET requests
 	// But first we need to allow all content types with no parsing, so we can handle raw data
 	app.addContentTypeParser('*', (_, __, done) => done(null))
+
+	// Library endpoints
+	app.get('/library', async (req, res) => {
+		const { getLibraryItems } = await import('./library')
+		res.send(await getLibraryItems())
+	})
+	
+	app.post('/library', async (req, res) => {
+		const { addLibraryItem } = await import('./library')
+		
+		try {
+			const chunks: Buffer[] = []
+			for await (const chunk of req.raw) {
+				chunks.push(chunk)
+			}
+			const body = Buffer.concat(chunks).toString('utf-8')
+			const item = JSON.parse(body)
+			
+			if (!item.id || !item.name || !item.content) {
+				res.status(400).send({ error: 'Invalid payload' })
+				return
+			}
+			
+			await addLibraryItem(item)
+			res.send({ ok: true })
+		} catch (e) {
+			res.status(400).send({ error: 'Bad Request' })
+		}
+	})
+
+	app.delete('/library/:id', async (req, res) => {
+		const { removeLibraryItem } = await import('./library')
+		const id = (req.params as any).id as string
+		await removeLibraryItem(id)
+		res.send({ ok: true })
+	})
+
 	app.put('/uploads/:id', {}, async (req, res) => {
 		const id = (req.params as any).id as string
 		await storeAsset(id, req.raw)
