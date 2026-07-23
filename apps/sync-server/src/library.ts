@@ -17,11 +17,19 @@ db.exec(`
 
 export async function getLibraryItems() {
   const rows = db.prepare('SELECT id, name, content FROM library_items').all() as any[]
-  return rows.map(row => ({
-    id: row.id,
-    name: row.name,
-    content: JSON.parse(row.content)
-  }))
+  return rows.map(row => {
+    let parsedContent;
+    try {
+      parsedContent = JSON.parse(row.content);
+    } catch (e) {
+      parsedContent = null;
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      content: parsedContent
+    };
+  }).filter(item => item.content !== null);
 }
 
 export async function addLibraryItem(item: {id: string, name: string, content: any}) {

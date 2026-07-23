@@ -76,15 +76,24 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	app.post('/library', async (req, res) => {
 		const { addLibraryItem } = await import('./library')
 		
-		const chunks = []
-		for await (const chunk of req.raw) {
-			chunks.push(chunk)
+		try {
+			const chunks: Buffer[] = []
+			for await (const chunk of req.raw) {
+				chunks.push(chunk)
+			}
+			const body = Buffer.concat(chunks).toString('utf-8')
+			const item = JSON.parse(body)
+			
+			if (!item.id || !item.name || !item.content) {
+				res.status(400).send({ error: 'Invalid payload' })
+				return
+			}
+			
+			await addLibraryItem(item)
+			res.send({ ok: true })
+		} catch (e) {
+			res.status(400).send({ error: 'Bad Request' })
 		}
-		const body = Buffer.concat(chunks).toString('utf-8')
-		const item = JSON.parse(body)
-		
-		await addLibraryItem(item)
-		res.send({ ok: true })
 	})
 
 	app.delete('/library/:id', async (req, res) => {

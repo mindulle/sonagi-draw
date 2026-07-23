@@ -74,11 +74,14 @@ function LibraryPanel() {
         }
 
         try {
-            await fetch(`${WORKER_URL}/library`, {
+            const res = await fetch(`${WORKER_URL}/library`, {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newItem)
             })
-            setCustomItems([...customItems, newItem])
+            if (!res.ok) throw new Error('서버 응답 오류')
+            
+            setCustomItems(prev => [...prev, newItem])
             alert(`'${name}' 이(가) 라이브러리에 추가되었습니다.`)
         } catch (e) {
             alert('저장에 실패했습니다.')
@@ -96,8 +99,9 @@ function LibraryPanel() {
         e.stopPropagation()
         if (confirm('이 에셋을 삭제하시겠습니까?')) {
             try {
-                await fetch(`${WORKER_URL}/library/${id}`, { method: 'DELETE' })
-                setCustomItems(customItems.filter(item => item.id !== id))
+                const res = await fetch(`${WORKER_URL}/library/${id}`, { method: 'DELETE' })
+                if (!res.ok) throw new Error('서버 응답 오류')
+                setCustomItems(prev => prev.filter(item => item.id !== id))
             } catch (e) {
                 alert('삭제에 실패했습니다.')
             }
