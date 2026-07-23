@@ -19,6 +19,29 @@ import { loadAsset, storeAsset } from './assets'
 import { makeOrLoadRoom } from './rooms'
 import { unfurl } from './unfurl'
 
+import fs from 'fs/promises'
+import path from 'path'
+
+const LIBRARY_FILE = path.join(process.cwd(), '.rooms', 'library.json')
+
+const initializeLibrary = async () => {
+    try {
+        await fs.access(LIBRARY_FILE)
+    } catch {
+        const dir = path.dirname(LIBRARY_FILE)
+        try {
+            await fs.mkdir(dir, { recursive: true })
+        } catch (e) {}
+        try {
+            await fs.writeFile(LIBRARY_FILE, JSON.stringify({
+                "🧩 기본 컴포넌트": [],
+                "📦 커스텀 에셋": []
+            }, null, 2))
+        } catch (e) {}
+    }
+}
+
+
 const PORT = 5858
 
 // For this example we use a simple fastify server with the official websocket plugin
@@ -118,6 +141,46 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	})
 
 	// To enable unfurling of bookmarks, we add a simple endpoint that takes a URL query param
+	
+	app.get('/library', async (req, res) => {
+        try {
+            await initializeLibrary()
+            const libraryRaw = await fs.readFile(LIBRARY_FILE, 'utf8')
+            res.send(JSON.parse(libraryRaw))
+        } catch (error) {
+            console.error("Library GET error:", error)
+            res.status(500).send({ error: "Failed to read library" })
+        }
+	})
+
+	app.post('/library', async (req, res) => {
+        try {
+            let body = ''
+            for await (const chunk of req.raw) {
+                body += chunk
+            }
+            const newAsset = JSON.parse(body)
+            
+            await initializeLibrary()
+            const libraryRaw = await fs.readFile(LIBRARY_FILE, 'utf8')
+            const library = JSON.parse(libraryRaw)
+            
+            const category = newAsset.category || "📦 커스텀 에셋"
+            if (!library[category]) library[category] = []
+            library[category].push({
+                name: newAsset.name,
+                shapes: newAsset.shapes
+            })
+            
+            await fs.writeFile(LIBRARY_FILE, JSON.stringify(library, null, 2))
+            res.send({ ok: true })
+        } catch (error) {
+            console.error("Library POST error:", error)
+            res.status(500).send({ error: "Failed to save to library" })
+        }
+	})
+
+
 	app.get('/unfurl', async (req, res) => {
 		const url = (req.query as any).url as string
 		res.send(await unfurl(url))
