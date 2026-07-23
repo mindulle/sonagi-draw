@@ -415,7 +415,7 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                 components={{ SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={customShapeUtils}
-                
+                licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
             />
         </div>
     )
