@@ -10,7 +10,7 @@ export type WiredProgressShape = TLBaseShape<
     }
 >
 
-// @ts-ignore
+// @ts-expect-error TLShape is a closed union of built-in shapes in current types, so we bypass constraint for custom shapes
 export class WiredProgressShapeUtil extends ShapeUtil<WiredProgressShape> {
     static override type = 'wired-progress' as const
     static override props: RecordProps<WiredProgressShape> = {
@@ -63,12 +63,12 @@ export class WiredProgressShapeUtil extends ShapeUtil<WiredProgressShape> {
                             opacity={0.5}
                         />
                         <path 
-                            d={`M 4 4 L ${Math.max(4, (w - 8) * (progress / 100))} 5 L ${Math.max(4, (w - 8) * (progress / 100))} ${h-5} L 5 ${h-4} Z`} 
+                            d={`M 4 4 L ${4 + Math.max(0, (w - 8) * (progress / 100))} 5 L ${4 + Math.max(0, (w - 8) * (progress / 100))} ${h-5} L 5 ${h-4} Z`} 
                             fill={color} 
                             stroke="none" 
                         />
                         <path 
-                            d={`M 10 10 L ${Math.max(10, (w - 20) * (progress / 100))} ${h-10}`}
+                            d={`M 10 10 L ${10 + Math.max(0, (w - 20) * (progress / 100))} ${h-10}`}
                             stroke="#fff"
                             strokeWidth={2}
                             opacity={0.3}
@@ -101,7 +101,11 @@ export class WiredProgressShapeUtil extends ShapeUtil<WiredProgressShape> {
                                 props: { progress: parseInt(e.target.value) }
                             } as any)
                         }}
-                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => {
+                            if (this.editor.getOnlySelectedShape()?.id === shape.id) {
+                                e.stopPropagation()
+                            }
+                        }}
                         style={{
                             position: 'absolute',
                             top: 0, left: 0, width: '100%', height: '100%',
