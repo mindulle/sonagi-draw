@@ -7,12 +7,14 @@ import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
 import { WiredToggleShapeUtil } from './WiredToggleShape'
 import { WiredCheckboxShapeUtil } from './WiredCheckboxShape'
+import { WiredBarChartShapeUtil } from './WiredBarChartShape'
+import { WiredDonutChartShapeUtil } from './WiredDonutChartShape'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent, toRichText } from './libraryTemplates'
 
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const WORKER_URL = window.location.origin
 
@@ -174,6 +176,16 @@ function LibrarySidebar() {
                 { id: bgId, type: 'wired-progress', x: center.x, y: center.y, props: { w: 300, h: 40, progress: 60, color: '#3b82f6' } }
             ] as any)
             editor.select(bgId)
+        } else if (type === 'wired-bar-chart') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-bar-chart', x: center.x, y: center.y, props: { w: 300, h: 200, color: '#3b82f6', values: "40, 80, 55, 90, 30" } }
+            ] as any)
+            editor.select(bgId)
+        } else if (type === 'wired-donut-chart') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-donut-chart', x: center.x, y: center.y, props: { w: 200, h: 200, color: '#10b981', values: "30, 40, 20, 10" } }
+            ] as any)
+            editor.select(bgId)
         } else if (type === 'wired-data-table') {
             editor.createShapes([
                 { id: bgId, type: 'wired-data-table', x: center.x, y: center.y, props: { rows: 3, cols: 3, cellWidth: 120, cellHeight: 40, data: {} } }
@@ -203,6 +215,13 @@ function LibrarySidebar() {
                 { label: "Wired Data Table (Smart)", type: "wired-data-table", insert: insertDefaultComponent },
                 { label: "Wired Toggle (Smart)", type: "wired-toggle", insert: insertDefaultComponent },
                 { label: "Wired Checkbox (Smart)", type: "wired-checkbox", insert: insertDefaultComponent }
+            ]
+        },
+        {
+            category: "데이터 시각화",
+            items: [
+                { label: "Wired Bar Chart (Smart)", type: "wired-bar-chart", insert: insertDefaultComponent },
+                { label: "Wired Donut Chart (Smart)", type: "wired-donut-chart", insert: insertDefaultComponent }
             ]
         },
         {
