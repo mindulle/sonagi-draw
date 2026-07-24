@@ -85,7 +85,7 @@ export class WiredUserFlowNodeShapeUtil extends ShapeUtil<WiredUserFlowNodeShape
                             position: 'absolute',
                             top: 0, left: 16, width: w - 24, height: h,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontFamily: 'Comic Sans MS, cursive, sans-serif',
+                            fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: '14px',
                             color: '#111',

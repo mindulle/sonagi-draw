@@ -129,7 +129,7 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
                                             border: 'none',
                                             outline: 'none',
                                             padding: '8px',
-                                            fontFamily: 'Comic Sans MS, cursive, sans-serif',
+                                            fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                                             fontSize: isHeader ? '14px' : '13px',
                                             fontWeight: isHeader ? 'bold' : 'normal',
                                             textAlign: 'center',

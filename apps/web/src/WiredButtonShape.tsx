@@ -84,7 +84,7 @@ export class WiredButtonShapeUtil extends ShapeUtil<WiredButtonShape> {
                             position: 'absolute',
                             top: 0, left: 0, width: '100%', height: '100%',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontFamily: 'Comic Sans MS, cursive, sans-serif',
+                            fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: `${Math.min(h * 0.4, w * 0.2)}px`,
                             color: '#fff',

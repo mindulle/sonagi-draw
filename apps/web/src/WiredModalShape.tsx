@@ -90,7 +90,7 @@ export class WiredModalShapeUtil extends ShapeUtil<WiredModalShape> {
                         <div style={{
                             position: 'absolute',
                             top: 8, left: 15, width: w - 50,
-                            fontFamily: 'Comic Sans MS, cursive, sans-serif',
+                            fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: '16px',
                             color: '#111',

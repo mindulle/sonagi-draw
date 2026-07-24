@@ -94,7 +94,7 @@ export class WiredCardShapeUtil extends ShapeUtil<WiredCardShape> {
                         <div style={{
                             position: 'absolute',
                             top: imgH + 10, left: 15, width: w - 30,
-                            fontFamily: 'Comic Sans MS, cursive, sans-serif',
+                            fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: '18px',
                             color: '#111',
