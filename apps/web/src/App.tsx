@@ -12,12 +12,16 @@ import { WiredDonutChartShapeUtil } from './WiredDonutChartShape'
 import { WiredButtonShapeUtil } from './WiredButtonShape'
 import { WiredCardShapeUtil } from './WiredCardShape'
 import { WiredModalShapeUtil } from './WiredModalShape'
+import { WiredMobileFrameShapeUtil } from './WiredMobileFrameShape'
+import { WiredBrowserFrameShapeUtil } from './WiredBrowserFrameShape'
+import { WiredUserFlowNodeShapeUtil } from './WiredUserFlowNodeShape'
+import { WiredAnnotationPinShapeUtil } from './WiredAnnotationPinShape'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent } from './libraryTemplates'
 
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const WORKER_URL = window.location.origin
 
