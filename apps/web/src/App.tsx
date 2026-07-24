@@ -226,7 +226,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "레이아웃 & 디바이스",
+            category: "Wired 레이아웃 & 디바이스",
             items: [
                 { label: "모바일 프레임 (목업)", type: "mobile-frame", insert: insertLayoutComponent },
                 { label: "웹 브라우저 창", type: "browser-window", insert: insertLayoutComponent },
@@ -234,7 +234,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "자주 쓰이는 UX 패턴",
+            category: "Wired UX 패턴",
             items: [
                 { label: "로그인 / 회원가입 폼", type: "auth-form", insert: insertUXPatternComponent },
                 { label: "가격 정책 표 (3단)", type: "pricing-table", insert: insertUXPatternComponent },
@@ -242,7 +242,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "유저 여정 & 다이어그램",
+            category: "Wired 다이어그램 & 유저 여정",
             items: [
                 { label: "유저 플로우 노드", type: "user-flow", insert: insertDiagramComponent },
                 { label: "사이트맵 뼈대", type: "sitemap", insert: insertDiagramComponent },
@@ -250,7 +250,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "어노테이션 & 마커",
+            category: "Wired 어노테이션 & 마커",
             items: [
                 { label: "마우스 커서 / 포인터", type: "cursor-pointer", insert: insertAnnotationComponent },
                 { label: "코멘트 핀 (숫자 뱃지)", type: "comment-pin", insert: insertAnnotationComponent },
