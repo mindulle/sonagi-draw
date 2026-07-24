@@ -109,6 +109,10 @@ export class WiredDonutChartShapeUtil extends ShapeUtil<WiredDonutChartShape> {
         }
     }
 
+    override getIndicatorPath(shape: WiredDonutChartShape) {
+        return new Path2D(`M 0 0 L ${shape.props.w} 0 L ${shape.props.w} ${shape.props.h} L 0 ${shape.props.h} Z`)
+    }
+
     override indicator(shape: WiredDonutChartShape) {
         return <rect width={shape.props.w} height={shape.props.h} />
     }

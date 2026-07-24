@@ -112,6 +112,10 @@ export class WiredBarChartShapeUtil extends ShapeUtil<WiredBarChartShape> {
         }
     }
 
+    override getIndicatorPath(shape: WiredBarChartShape) {
+        return new Path2D(`M 0 0 L ${shape.props.w} 0 L ${shape.props.w} ${shape.props.h} L 0 ${shape.props.h} Z`)
+    }
+
     override indicator(shape: WiredBarChartShape) {
         return <rect width={shape.props.w} height={shape.props.h} />
     }
