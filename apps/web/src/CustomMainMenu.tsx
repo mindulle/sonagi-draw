@@ -18,10 +18,10 @@ const toRichText = (text: string) => {
         
         // Add the 2x2 Matrix to Requirements
         editor.createShapes([
-            { id: createShapeId(), type: 'geo', x: 100, y: 100, props: { geo: 'rectangle', w: 400, h: 400, text: 'High Impact / Low Effort (가장 먼저)' } },
-            { id: createShapeId(), type: 'geo', x: 500, y: 100, props: { geo: 'rectangle', w: 400, h: 400, text: 'High Impact / High Effort (메인 플젝)' } },
-            { id: createShapeId(), type: 'geo', x: 100, y: 500, props: { geo: 'rectangle', w: 400, h: 400, text: 'Low Impact / Low Effort (시간 남을 때)' } },
-            { id: createShapeId(), type: 'geo', x: 500, y: 500, props: { geo: 'rectangle', w: 400, h: 400, text: 'Low Impact / High Effort (안 해도 됨)' } }
+            { id: createShapeId(), type: 'geo', x: 100, y: 100, props: { geo: 'rectangle', w: 400, h: 400, richText: toRichText('High Impact / Low Effort (가장 먼저)') } },
+            { id: createShapeId(), type: 'geo', x: 500, y: 100, props: { geo: 'rectangle', w: 400, h: 400, richText: toRichText('High Impact / High Effort (메인 플젝)') } },
+            { id: createShapeId(), type: 'geo', x: 100, y: 500, props: { geo: 'rectangle', w: 400, h: 400, richText: toRichText('Low Impact / Low Effort (시간 남을 때)') } },
+            { id: createShapeId(), type: 'geo', x: 500, y: 500, props: { geo: 'rectangle', w: 400, h: 400, richText: toRichText('Low Impact / High Effort (안 해도 됨)') } }
         ] as any[])
         
         // Create User Journey Page
@@ -39,8 +39,8 @@ const toRichText = (text: string) => {
         editor.createPage({ name: "📐 Wireframe & UI Kit", id: wireframePageId })
         editor.setCurrentPage(wireframePageId)
         editor.createShapes([
-            { id: createShapeId(), type: 'geo', x: 100, y: 100, props: { geo: 'rectangle', w: 375, h: 812, text: 'Mobile App Frame' } },
-            { id: createShapeId(), type: 'geo', x: 500, y: 100, props: { geo: 'rectangle', w: 1280, h: 800, text: 'Web Desktop Frame' } }
+            { id: createShapeId(), type: 'geo', x: 100, y: 100, props: { geo: 'rectangle', w: 375, h: 812, richText: toRichText('Mobile App Frame') } },
+            { id: createShapeId(), type: 'geo', x: 500, y: 100, props: { geo: 'rectangle', w: 1280, h: 800, richText: toRichText('Web Desktop Frame') } }
         ] as any[])
 
         // Create Moodboard Page
