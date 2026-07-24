@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@sentry/react": "^10.66.0",
@@ -17,11 +20,17 @@
     "tldraw": "^5.2.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/dompurify": "^3.0.5",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react-swc": "^3.10.2",
+    "jsdom": "^29.1.1",
     "typescript": "^5.8.3",
-    "vite": "^7.0.1"
+    "vite": "^7.0.1",
+    "vitest": "^4.1.10"
   }
 }
