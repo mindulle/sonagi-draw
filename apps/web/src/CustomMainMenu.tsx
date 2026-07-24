@@ -3,6 +3,14 @@ import { DefaultMainMenu, DefaultMainMenuContent, TldrawUiMenuItem, TldrawUiMenu
 export function CustomMainMenu() {
     const editor = useEditor()
 
+    
+const toRichText = (text: string) => {
+    return {
+        type: 'doc',
+        content: text.split('\n').map(line => line ? { type: 'paragraph', content: [{ type: 'text', text: line }] } : { type: 'paragraph', content: [] })
+    }
+}
+
     const apply4TabsTemplate = () => {
         // First, rename the current page to "📌 Requirements"
         const currentPage = editor.getCurrentPage()
@@ -21,9 +29,9 @@ export function CustomMainMenu() {
         editor.createPage({ name: "🗺️ User Journey", id: journeyPageId })
         editor.setCurrentPage(journeyPageId)
         editor.createShapes([
-            { id: createShapeId(), type: 'note', x: 100, y: 100, props: { text: '1. 앱 실행', color: 'blue' } },
-            { id: createShapeId(), type: 'note', x: 300, y: 100, props: { text: '2. 로그인', color: 'blue' } },
-            { id: createShapeId(), type: 'note', x: 100, y: 300, props: { text: '긍정적 감정 😄', color: 'green' } }
+            { id: createShapeId(), type: 'note', x: 100, y: 100, props: { richText: toRichText('1. 앱 실행'), color: 'blue' } },
+            { id: createShapeId(), type: 'note', x: 300, y: 100, props: { richText: toRichText('2. 로그인'), color: 'blue' } },
+            { id: createShapeId(), type: 'note', x: 100, y: 300, props: { richText: toRichText('긍정적 감정 😄'), color: 'green' } }
         ] as any[])
 
         // Create Wireframe Page
@@ -40,7 +48,7 @@ export function CustomMainMenu() {
         editor.createPage({ name: "🎨 Moodboard", id: moodboardPageId })
         editor.setCurrentPage(moodboardPageId)
         editor.createShapes([
-            { id: createShapeId(), type: 'text', x: 100, y: 100, props: { text: '1. Clean & Minimal UI\n2. Bold Typography\n3. High Contrast', size: 'l' } },
+            { id: createShapeId(), type: 'text', x: 100, y: 100, props: { richText: toRichText('1. Clean & Minimal UI\n2. Bold Typography\n3. High Contrast'), size: 'l' } },
             { id: createShapeId(), type: 'geo', x: 100, y: 300, props: { geo: 'rectangle', w: 100, h: 100, color: 'black', fill: 'solid' } },
             { id: createShapeId(), type: 'geo', x: 220, y: 300, props: { geo: 'rectangle', w: 100, h: 100, color: 'blue', fill: 'solid' } },
             { id: createShapeId(), type: 'geo', x: 340, y: 300, props: { geo: 'rectangle', w: 100, h: 100, color: 'green', fill: 'solid' } }

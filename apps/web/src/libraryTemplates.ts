@@ -66,11 +66,11 @@ export const insertUXPatternComponent = (editor: Editor, type: string) => {
             
             editor.createShapes([
                 { id: bgId, type: 'wired-container', x: center.x, y: center.y, props: { w: 400, h: 450 } },
-                { id: titleId, type: 'text', x: center.x + 140, y: center.y + 40, props: { text: '로그인 / 회원가입', size: 'm' } },
+                { id: titleId, type: 'text', x: center.x + 140, y: center.y + 40, props: { richText: toRichText('로그인 / 회원가입'), size: 'm' } },
                 { id: emailInputId, type: 'wired-input', x: center.x + 40, y: center.y + 120, props: { w: 320, h: 48, placeholder: '이메일 주소' } },
                 { id: pwInputId, type: 'wired-input', x: center.x + 40, y: center.y + 180, props: { w: 320, h: 48, placeholder: '비밀번호' } },
                 { id: loginBtnId, type: 'wired-button', x: center.x + 40, y: center.y + 260, props: { w: 320, h: 56, text: '로그인', color: '#3b82f6' } },
-                { id: linkId, type: 'text', x: center.x + 110, y: center.y + 340, props: { text: '비밀번호를 잊으셨나요?', size: 's', color: 'blue' } },
+                { id: linkId, type: 'text', x: center.x + 110, y: center.y + 340, props: { richText: toRichText('비밀번호를 잊으셨나요?'), size: 's', color: 'blue' } },
             ] as any)
             safeGroup(editor, [bgId, titleId, emailInputId, pwInputId, loginBtnId, linkId])
         } 
@@ -159,11 +159,11 @@ export const insertDiagramComponent = (editor: Editor, type: string) => {
             
             editor.createShapes([
                 { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'grey', fill: 'none', w: 500, h: 400, richText: toRichText('Idea Board'), align: 'start', verticalAlign: 'start' } },
-                { id: s1, type: 'note', x: center.x + 40, y: center.y + 60, rotation: -0.1, props: { color: 'yellow', text: 'Idea 1' } },
-                { id: s2, type: 'note', x: center.x + 200, y: center.y + 40, rotation: 0.05, props: { color: 'green', text: 'Idea 2' } },
-                { id: s3, type: 'note', x: center.x + 340, y: center.y + 80, rotation: -0.05, props: { color: 'blue', text: 'Idea 3' } },
-                { id: s4, type: 'note', x: center.x + 80, y: center.y + 220, rotation: 0.1, props: { color: 'red', text: 'Idea 4' } },
-                { id: s5, type: 'note', x: center.x + 260, y: center.y + 200, rotation: -0.15, props: { color: 'yellow', text: 'Idea 5' } },
+                { id: s1, type: 'note', x: center.x + 40, y: center.y + 60, rotation: -0.1, props: { color: 'yellow', richText: toRichText('Idea 1') } },
+                { id: s2, type: 'note', x: center.x + 200, y: center.y + 40, rotation: 0.05, props: { color: 'green', richText: toRichText('Idea 2') } },
+                { id: s3, type: 'note', x: center.x + 340, y: center.y + 80, rotation: -0.05, props: { color: 'blue', richText: toRichText('Idea 3') } },
+                { id: s4, type: 'note', x: center.x + 80, y: center.y + 220, rotation: 0.1, props: { color: 'red', richText: toRichText('Idea 4') } },
+                { id: s5, type: 'note', x: center.x + 260, y: center.y + 200, rotation: -0.15, props: { color: 'yellow', richText: toRichText('Idea 5') } },
             ] as any)
             safeGroup(editor, [bgId, s1, s2, s3, s4, s5])
         }
