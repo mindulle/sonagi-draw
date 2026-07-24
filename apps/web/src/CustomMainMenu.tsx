@@ -52,6 +52,7 @@ export function CustomMainMenu() {
 
     return (
         <DefaultMainMenu>
+            {/* @ts-expect-error React 18 type mismatch */}
             <TldrawUiMenuGroup id="custom-templates">
                 <TldrawUiMenuItem
                     id="apply-4tabs"

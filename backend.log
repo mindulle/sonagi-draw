@@ -1,0 +1,15 @@
+$ tsx src/server.ts
+Error: listen EADDRINUSE: address already in use 0.0.0.0:5858
+    at Server.setupListenHandle [as _listen2] (node:net:2009:16)
+    at listenInCluster (node:net:2066:12)
+    at node:net:2275:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 5858
+}
+/home/ubuntu/sonagi-draw/apps/sync-server:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] sonagi-draw-backend@1.0.0 start: `tsx src/server.ts`
+Exit status 1

@@ -1,4 +1,3 @@
-import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { CustomMainMenu } from "./CustomMainMenu"
