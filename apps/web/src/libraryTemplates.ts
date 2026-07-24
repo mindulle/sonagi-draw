@@ -40,7 +40,7 @@ export const insertLayoutComponent = (editor: Editor, type: string) => {
             const contentId = createShapeId()
             
             editor.createShapes([
-                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 900, h: 600 } },
+                { id: bgId, type: 'wired-container', x: center.x, y: center.y, props: { w: 900, h: 600 } },
                 { id: sidebarId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'solid', w: 200, h: 600 } },
                 { id: headerId, type: 'geo', x: center.x + 200, y: center.y, props: { geo: 'rectangle', color: 'grey', fill: 'semi', w: 700, h: 60 } },
                 { id: contentId, type: 'geo', x: center.x + 220, y: center.y + 80, props: { geo: 'rectangle', color: 'grey', fill: 'none', w: 660, h: 500, richText: toRichText('Main Content') } },
@@ -60,30 +60,35 @@ export const insertUXPatternComponent = (editor: Editor, type: string) => {
             const bgId = createShapeId()
             const titleId = createShapeId()
             const loginBtnId = createShapeId()
-            const emailLabelId = createShapeId()
-            const pwLabelId = createShapeId()
+            const emailInputId = createShapeId()
+            const pwInputId = createShapeId()
+            const linkId = createShapeId()
             
             editor.createShapes([
-                { id: bgId, type: 'wired-card', x: center.x, y: center.y, props: { w: 400, h: 450, title: '로그인 / 회원가입' } },
-                { id: emailLabelId, type: 'geo', x: center.x + 40, y: center.y + 120, props: { geo: 'rectangle', color: 'grey', fill: 'semi', w: 320, h: 48, richText: toRichText('이메일 주소') } },
-                { id: pwLabelId, type: 'geo', x: center.x + 40, y: center.y + 180, props: { geo: 'rectangle', color: 'grey', fill: 'semi', w: 320, h: 48, richText: toRichText('비밀번호') } },
+                { id: bgId, type: 'wired-container', x: center.x, y: center.y, props: { w: 400, h: 450 } },
+                { id: titleId, type: 'text', x: center.x + 140, y: center.y + 40, props: { text: '로그인 / 회원가입', size: 'm' } },
+                { id: emailInputId, type: 'wired-input', x: center.x + 40, y: center.y + 120, props: { w: 320, h: 48, placeholder: '이메일 주소' } },
+                { id: pwInputId, type: 'wired-input', x: center.x + 40, y: center.y + 180, props: { w: 320, h: 48, placeholder: '비밀번호' } },
                 { id: loginBtnId, type: 'wired-button', x: center.x + 40, y: center.y + 260, props: { w: 320, h: 56, text: '로그인', color: '#3b82f6' } },
+                { id: linkId, type: 'text', x: center.x + 110, y: center.y + 340, props: { text: '비밀번호를 잊으셨나요?', size: 's', color: 'blue' } },
             ] as any)
-            safeGroup(editor, [bgId, titleId, emailLabelId, pwLabelId, loginBtnId])
+            safeGroup(editor, [bgId, titleId, emailInputId, pwInputId, loginBtnId, linkId])
         } 
         else if (type === 'pricing-table') {
+            const bgId = createShapeId()
             const basicCardId = createShapeId()
             const proCardId = createShapeId()
             const entCardId = createShapeId()
             const proBtnId = createShapeId()
             
             editor.createShapes([
-                { id: basicCardId, type: 'wired-card', x: center.x, y: center.y, props: { w: 240, h: 360, title: 'Basic ($0)' } },
-                { id: proCardId, type: 'wired-card', x: center.x + 280, y: center.y - 20, props: { w: 260, h: 400, title: 'Pro ($19)' } },
-                { id: proBtnId, type: 'wired-button', x: center.x + 280 + 70, y: center.y + 320, props: { w: 120, h: 48, text: '선택하기', color: '#10b981' } },
-                { id: entCardId, type: 'wired-card', x: center.x + 580, y: center.y, props: { w: 240, h: 360, title: 'Enterprise' } },
+                { id: bgId, type: 'wired-container', x: center.x, y: center.y, props: { w: 900, h: 500 } },
+                { id: basicCardId, type: 'wired-card', x: center.x + 40, y: center.y + 50, props: { w: 240, h: 400, title: 'Basic ($0)\n\n- 기능 A\n- 기능 B' } },
+                { id: proCardId, type: 'wired-card', x: center.x + 320, y: center.y + 30, props: { w: 260, h: 440, title: 'Pro ($19)\n\n- 기능 A\n- 기능 B\n- 24/7 지원' } },
+                { id: proBtnId, type: 'wired-button', x: center.x + 360, y: center.y + 380, props: { w: 180, h: 48, text: '선택하기', color: '#10b981' } },
+                { id: entCardId, type: 'wired-card', x: center.x + 620, y: center.y + 50, props: { w: 240, h: 400, title: 'Enterprise\n\nContact Us\n\n- 무제한 기능' } },
             ] as any)
-            safeGroup(editor, [basicCardId, proCardId, proBtnId, entCardId])
+            safeGroup(editor, [bgId, basicCardId, proCardId, proBtnId, entCardId])
         }
         else if (type === 'feed-list') {
             const bgId = createShapeId()
@@ -92,7 +97,7 @@ export const insertUXPatternComponent = (editor: Editor, type: string) => {
             const item3BgId = createShapeId()
             
             editor.createShapes([
-                { id: bgId, type: 'geo', x: center.x, y: center.y, props: { geo: 'rectangle', color: 'black', fill: 'none', w: 600, h: 500 } },
+                { id: bgId, type: 'wired-container', x: center.x, y: center.y, props: { w: 600, h: 500 } },
                 { id: item1BgId, type: 'wired-card', x: center.x + 20, y: center.y + 20, props: { w: 560, h: 120, title: '콘텐츠 제목 1' } },
                 { id: item2BgId, type: 'wired-card', x: center.x + 20, y: center.y + 160, props: { w: 560, h: 120, title: '콘텐츠 제목 2' } },
                 { id: item3BgId, type: 'wired-card', x: center.x + 20, y: center.y + 300, props: { w: 560, h: 120, title: '콘텐츠 제목 3' } },
