@@ -29,6 +29,16 @@ export class WiredCheckboxShapeUtil extends ShapeUtil<WiredCheckboxShape> {
         }
     }
 
+    
+    override onResize(_shape: any, info: any) {
+        return {
+            props: {
+                w: Math.max(50, info.initialBounds.w * info.scaleX),
+                h: Math.max(50, info.initialBounds.h * info.scaleY),
+            }
+        } as any
+    }
+
     override getGeometry(shape: WiredCheckboxShape) {
         return new Rectangle2d({ width: shape.props.w, height: shape.props.h, isFilled: true })
     }

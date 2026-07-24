@@ -32,6 +32,16 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
         }
     }
 
+    
+    override onResize(_shape: any, info: any) {
+        return {
+            props: {
+                w: Math.max(50, info.initialBounds.w * info.scaleX),
+                h: Math.max(50, info.initialBounds.h * info.scaleY),
+            }
+        } as any
+    }
+
     override getGeometry(shape: WiredDataTableShape) {
         const w = shape.props.cols * shape.props.cellWidth
         const h = shape.props.rows * shape.props.cellHeight
