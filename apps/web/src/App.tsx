@@ -207,7 +207,7 @@ function LibrarySidebar() {
 
     const BUILTIN_CATEGORIES = [
         {
-            category: "Wired UI 키트 (손그림)",
+            category: "기본 UI 키트",
             items: [
                 { label: "Button", type: "button", insert: insertDefaultComponent },
                 { label: "Card", type: "card", insert: insertDefaultComponent },
@@ -219,14 +219,14 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "Wired Charts (손그림 데이터)",
+            category: "데이터 시각화 (차트)",
             items: [
                 { label: "Bar Chart", type: "wired-bar-chart", insert: insertDefaultComponent },
                 { label: "Donut Chart", type: "wired-donut-chart", insert: insertDefaultComponent }
             ]
         },
         {
-            category: "Wired 레이아웃 & 디바이스",
+            category: "레이아웃 & 디바이스",
             items: [
                 { label: "모바일 프레임 (목업)", type: "mobile-frame", insert: insertLayoutComponent },
                 { label: "웹 브라우저 창", type: "browser-window", insert: insertLayoutComponent },
@@ -234,7 +234,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "Wired UX 패턴",
+            category: "자주 쓰이는 UX 패턴",
             items: [
                 { label: "로그인 / 회원가입 폼", type: "auth-form", insert: insertUXPatternComponent },
                 { label: "가격 정책 표 (3단)", type: "pricing-table", insert: insertUXPatternComponent },
@@ -242,7 +242,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "Wired 다이어그램 & 유저 여정",
+            category: "다이어그램 & 유저 여정",
             items: [
                 { label: "유저 플로우 노드", type: "user-flow", insert: insertDiagramComponent },
                 { label: "사이트맵 뼈대", type: "sitemap", insert: insertDiagramComponent },
@@ -250,7 +250,7 @@ function LibrarySidebar() {
             ]
         },
         {
-            category: "Wired 어노테이션 & 마커",
+            category: "어노테이션 & 마커",
             items: [
                 { label: "마우스 커서 / 포인터", type: "cursor-pointer", insert: insertAnnotationComponent },
                 { label: "코멘트 핀 (숫자 뱃지)", type: "comment-pin", insert: insertAnnotationComponent },
