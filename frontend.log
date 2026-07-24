@@ -1,0 +1,18 @@
+$ vite --host
+
+  VITE v7.3.6  ready in 335 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://10.0.0.193:5173/
+  ➜  Network: http://172.17.0.1:5173/
+  ➜  Network: http://172.25.0.1:5173/
+  ➜  Network: http://172.18.0.1:5173/
+  ➜  Network: http://172.26.0.1:5173/
+  ➜  Network: http://100.91.9.83:5173/
+  ➜  Network: http://172.23.0.1:5173/
+  ➜  Network: http://172.24.0.1:5173/
+  ➜  Network: http://172.19.0.1:5173/
+11:52:32 AM [vite] (client) hmr update /src/App.tsx
+11:53:01 AM [vite] (client) hmr update /src/App.tsx
+12:55:44 PM [vite] (client) hmr update /src/App.tsx
+12:56:28 PM [vite] (client) hmr update /src/CustomMainMenu.tsx
