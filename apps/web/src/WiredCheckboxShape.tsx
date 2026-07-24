@@ -128,7 +128,7 @@ export class WiredCheckboxShapeUtil extends ShapeUtil<WiredCheckboxShape> {
                             background: 'transparent',
                             border: 'none',
                             outline: 'none',
-                            fontFamily: 'Comic Sans MS, cursive, sans-serif',
+                            fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontSize: '15px',
                             color: '#111',
                             width: `calc(100% - ${textOffset}px)`
