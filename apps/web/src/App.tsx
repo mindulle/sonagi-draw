@@ -1,6 +1,7 @@
 import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor } from 'tldraw'
 import 'tldraw/tldraw.css'
+import { CustomMainMenu } from "./CustomMainMenu"
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
@@ -424,7 +425,7 @@ const customAssetUrls = {
 }
 
 function TldrawWrapper({ roomId }: { roomId: string }) {
-    const storeSync = useSync({
+     ({
 		uri: `${WORKER_URL}/connect/${roomId}`,
         assets: multiplayerAssets
 	})
@@ -432,8 +433,8 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
     return (
         <div style={{ width: '100%', height: '100%' }}>
             <Tldraw 
-                store={storeSync} 
-                components={{ SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
+                 
+                components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={customShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
