@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
 import { WiredToggleShapeUtil } from './WiredToggleShape'
 
 // Just a simple test checking if the util can be instantiated and returns valid properties
