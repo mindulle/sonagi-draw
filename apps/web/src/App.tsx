@@ -1,3 +1,4 @@
+import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { CustomMainMenu } from "./CustomMainMenu"
@@ -454,16 +455,14 @@ const customAssetUrls = {
 }
 
 function TldrawWrapper({ roomId }: { roomId: string }) {
-     ({
+     const storeSync = useSync({
 		uri: `${WORKER_URL}/connect/${roomId}`,
         assets: multiplayerAssets
 	})
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw 
-                 
-                components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
+            <Tldraw store={storeSync} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={customShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
