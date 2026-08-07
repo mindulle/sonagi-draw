@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredModalProps, WiredModalMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredModalShape = TLBaseShape<
     'wired-modal',
@@ -12,11 +13,8 @@ export type WiredModalShape = TLBaseShape<
 // @ts-expect-error
 export class WiredModalShapeUtil extends ShapeUtil<WiredModalShape> {
     static override type = 'wired-modal' as const
-    static override props: RecordProps<WiredModalShape> = {
-        w: T.number,
-        h: T.number,
-        title: T.string
-    }
+    static override props: RecordProps<any> = WiredModalProps as any
+    static override migrations = WiredModalMigrations
 
     override getDefaultProps(): WiredModalShape['props'] {
         return {

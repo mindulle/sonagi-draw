@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredBrowserFrameProps, WiredBrowserFrameMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredBrowserFrameShape = TLBaseShape<
     'wired-browser-frame',
@@ -11,10 +12,8 @@ export type WiredBrowserFrameShape = TLBaseShape<
 // @ts-expect-error
 export class WiredBrowserFrameShapeUtil extends ShapeUtil<WiredBrowserFrameShape> {
     static override type = 'wired-browser-frame' as const
-    static override props: RecordProps<WiredBrowserFrameShape> = {
-        w: T.number,
-        h: T.number
-    }
+    static override props: RecordProps<any> = WiredBrowserFrameProps as any
+    static override migrations = WiredBrowserFrameMigrations
 
     override getDefaultProps(): WiredBrowserFrameShape['props'] {
         return {

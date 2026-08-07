@@ -26,6 +26,9 @@ jobs:
         
     - name: Install dependencies
       run: pnpm install
+
+    - name: Build Schema Package
+      run: pnpm --filter @sonagi-draw/schema build
       
     - name: Install Playwright Browsers
       run: pnpm --filter draw-sonagi-space exec playwright install --with-deps chromium

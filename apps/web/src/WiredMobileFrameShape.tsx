@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredMobileFrameProps, WiredMobileFrameMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredMobileFrameShape = TLBaseShape<
     'wired-mobile-frame',
@@ -11,10 +12,8 @@ export type WiredMobileFrameShape = TLBaseShape<
 // @ts-expect-error
 export class WiredMobileFrameShapeUtil extends ShapeUtil<WiredMobileFrameShape> {
     static override type = 'wired-mobile-frame' as const
-    static override props: RecordProps<WiredMobileFrameShape> = {
-        w: T.number,
-        h: T.number
-    }
+    static override props: RecordProps<any> = WiredMobileFrameProps as any
+    static override migrations = WiredMobileFrameMigrations
 
     override getDefaultProps(): WiredMobileFrameShape['props'] {
         return {

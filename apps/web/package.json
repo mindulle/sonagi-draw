@@ -12,6 +12,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@sonagi-draw/schema": "workspace:*",
     "@sentry/react": "^10.66.0",
     "@tldraw/sync": "^5.2.5",
     "dompurify": "^3.4.12",

@@ -1,4 +1,5 @@
-import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor } from 'tldraw'
+import { useSync } from '@tldraw/sync'
+import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor, defaultShapeUtils } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { CustomMainMenu } from "./CustomMainMenu"
 import { useEffect, useState } from 'react'
@@ -25,6 +26,8 @@ import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent
 
 
 const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor]
+
+const allShapeUtils = [...defaultShapeUtils, ...customShapeUtils]
 
 const WORKER_URL = window.location.origin
 
@@ -454,18 +457,17 @@ const customAssetUrls = {
 }
 
 function TldrawWrapper({ roomId }: { roomId: string }) {
-     ({
+     const storeSync = useSync({
 		uri: `${WORKER_URL}/connect/${roomId}`,
-        assets: multiplayerAssets
+        assets: multiplayerAssets,
+        shapeUtils: allShapeUtils
 	})
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw 
-                 
-                components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
+            <Tldraw store={storeSync} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
                 assetUrls={customAssetUrls}
-                shapeUtils={customShapeUtils}
+                shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
             />
         </div>
