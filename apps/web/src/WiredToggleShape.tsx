@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredToggleProps, WiredToggleMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredToggleShape = TLBaseShape<
     'wired-toggle',
@@ -12,11 +13,8 @@ export type WiredToggleShape = TLBaseShape<
 // @ts-expect-error
 export class WiredToggleShapeUtil extends ShapeUtil<WiredToggleShape> {
     static override type = 'wired-toggle' as const
-    static override props: RecordProps<WiredToggleShape> = {
-        w: T.number,
-        h: T.number,
-        isOn: T.boolean
-    }
+    static override props: RecordProps<any> = WiredToggleProps as any
+    static override migrations = WiredToggleMigrations
 
     override getDefaultProps(): WiredToggleShape['props'] {
         return {

@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredDataTableProps, WiredDataTableMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredDataTableShape = TLBaseShape<
     'wired-data-table',
@@ -14,13 +15,8 @@ export type WiredDataTableShape = TLBaseShape<
 // @ts-expect-error TLShape is a closed union of built-in shapes, so we bypass constraint for custom shapes
 export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
     static override type = 'wired-data-table' as const
-    static override props: RecordProps<WiredDataTableShape> = {
-        rows: T.number,
-        cols: T.number,
-        cellWidth: T.number,
-        cellHeight: T.number,
-        data: T.dict(T.string, T.string)
-    }
+    static override props: RecordProps<any> = WiredDataTableProps as any
+    static override migrations = WiredDataTableMigrations
 
     override getDefaultProps(): WiredDataTableShape['props'] {
         return {

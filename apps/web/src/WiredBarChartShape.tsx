@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredBarChartProps, WiredBarChartMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredBarChartShape = TLBaseShape<
     'wired-bar-chart',
@@ -13,12 +14,8 @@ export type WiredBarChartShape = TLBaseShape<
 // @ts-expect-error
 export class WiredBarChartShapeUtil extends ShapeUtil<WiredBarChartShape> {
     static override type = 'wired-bar-chart' as const
-    static override props: RecordProps<WiredBarChartShape> = {
-        w: T.number,
-        h: T.number,
-        color: T.string,
-        values: T.string
-    }
+    static override props: RecordProps<any> = WiredBarChartProps as any
+    static override migrations = WiredBarChartMigrations
 
     override getDefaultProps(): WiredBarChartShape['props'] {
         return {

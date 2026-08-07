@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredContainerProps, WiredContainerMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredContainerShape = TLBaseShape<
     'wired-container',
@@ -11,10 +12,8 @@ export type WiredContainerShape = TLBaseShape<
 // @ts-expect-error
 export class WiredContainerShapeUtil extends ShapeUtil<WiredContainerShape> {
     static override type = 'wired-container' as const
-    static override props: RecordProps<WiredContainerShape> = {
-        w: T.number,
-        h: T.number
-    }
+    static override props: RecordProps<any> = WiredContainerProps as any
+    static override migrations = WiredContainerMigrations
 
     override getDefaultProps(): WiredContainerShape['props'] {
         return {

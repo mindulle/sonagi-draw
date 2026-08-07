@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredCheckboxProps, WiredCheckboxMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredCheckboxShape = TLBaseShape<
     'wired-checkbox',
@@ -13,12 +14,8 @@ export type WiredCheckboxShape = TLBaseShape<
 // @ts-expect-error
 export class WiredCheckboxShapeUtil extends ShapeUtil<WiredCheckboxShape> {
     static override type = 'wired-checkbox' as const
-    static override props: RecordProps<WiredCheckboxShape> = {
-        w: T.number,
-        h: T.number,
-        isChecked: T.boolean,
-        label: T.string
-    }
+    static override props: RecordProps<any> = WiredCheckboxProps as any
+    static override migrations = WiredCheckboxMigrations
 
     override getDefaultProps(): WiredCheckboxShape['props'] {
         return {

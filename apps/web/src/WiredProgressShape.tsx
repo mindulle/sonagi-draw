@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredProgressProps, WiredProgressMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredProgressShape = TLBaseShape<
     'wired-progress',
@@ -13,12 +14,8 @@ export type WiredProgressShape = TLBaseShape<
 // @ts-expect-error TLShape is a closed union of built-in shapes in current types, so we bypass constraint for custom shapes
 export class WiredProgressShapeUtil extends ShapeUtil<WiredProgressShape> {
     static override type = 'wired-progress' as const
-    static override props: RecordProps<WiredProgressShape> = {
-        w: T.number,
-        h: T.number,
-        progress: T.number,
-        color: T.string
-    }
+    static override props: RecordProps<any> = WiredProgressProps as any
+    static override migrations = WiredProgressMigrations
 
     override getDefaultProps(): WiredProgressShape['props'] {
         return {
