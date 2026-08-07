@@ -10,5 +10,12 @@
     "dev": "docker-compose up -d && pnpm -r dev",
     "build": "pnpm -r build",
     "clean": "pnpm -r clean"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@sentry/node-cpu-profiler",
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }
