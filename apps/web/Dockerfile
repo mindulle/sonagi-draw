@@ -6,7 +6,7 @@ COPY apps/web/package.json apps/web/
 COPY packages/tldraw-schema/package.json packages/tldraw-schema/
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm --filter draw-sonagi-space build
+RUN pnpm -r build
 
 FROM nginx:alpine
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
