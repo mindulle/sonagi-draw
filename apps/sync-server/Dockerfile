@@ -1,7 +1,11 @@
 FROM node:22-bookworm-slim
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
+RUN npm install -g pnpm
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/sync-server/package.json apps/sync-server/
+COPY packages/tldraw-schema/package.json packages/tldraw-schema/
+RUN pnpm install --frozen-lockfile
 COPY . .
+WORKDIR /app/apps/sync-server
 EXPOSE 5858
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]
