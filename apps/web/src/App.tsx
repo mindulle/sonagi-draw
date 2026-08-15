@@ -419,7 +419,7 @@ export function AgentReceiver() {
             }
         };
 
-        eventSource.onerror = (e) => {
+        eventSource.onerror = () => {
             // Keep silent or log minimally to avoid spam on disconnects
             // console.error("AgentReceiver SSE error:", e);
         };
