@@ -2,6 +2,7 @@
   "name": "sonagi-draw-monorepo",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@8.15.5",
   "engines": {
     "node": ">=18",
     "pnpm": ">=8"
