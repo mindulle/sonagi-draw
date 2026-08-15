@@ -397,11 +397,47 @@ function LibrarySidebar() {
     )
 }
 
+export function AgentReceiver() {
+    const editor = useEditor();
+
+    useEffect(() => {
+        const eventSource = new EventSource("https://assets.sonagi.space/canvas-stream");
+        
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.ping) return;
+
+                if (data.shapes && Array.isArray(data.shapes)) {
+                    if (data.assets && Array.isArray(data.assets)) {
+                        editor.createAssets(data.assets);
+                    }
+                    editor.createShapes(data.shapes);
+                }
+            } catch (e) {
+                console.error("AgentReceiver error parsing event:", e);
+            }
+        };
+
+        eventSource.onerror = (e) => {
+            // Keep silent or log minimally to avoid spam on disconnects
+            // console.error("AgentReceiver SSE error:", e);
+        };
+
+        return () => {
+            eventSource.close();
+        };
+    }, [editor]);
+
+    return null;
+}
+
 function InFrontWrapper() {
     const isMobile = useIsMobile()
     return (
         <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 'calc(56px + env(safe-area-inset-top, 0px))' : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
             <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
+                <AgentReceiver />
                 <ShareButton />
                 <LibrarySidebar />
             </div>
