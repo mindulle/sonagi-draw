@@ -1,0 +1,5 @@
+---
+- hosts: devops
+  become: yes
+  roles:
+    - sonagi_draw

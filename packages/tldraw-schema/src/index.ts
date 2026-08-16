@@ -172,7 +172,36 @@ export const WiredModalMigrations = createShapePropsMigrationSequence({
 })
 
 
+
+export const WiredAssetCardProps = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    ext: T.string,
+    tags: T.string,
+    imageUrl: T.string
+}
+
+export const WiredAssetCardMigrations = createShapePropsMigrationSequence({
+    sequence: []
+})
+
+export const WiredReferenceCardProps = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    url: T.string,
+    imageUrl: T.string
+}
+
+export const WiredReferenceCardMigrations = createShapePropsMigrationSequence({
+    sequence: []
+})
+
 export const customShapeSchemas = {
+    'wired-asset-card': { migrations: WiredAssetCardMigrations, props: WiredAssetCardProps },
+    'wired-reference-card': { migrations: WiredReferenceCardMigrations, props: WiredReferenceCardProps },
+
     'wired-checkbox': { migrations: WiredCheckboxMigrations, props: WiredCheckboxProps },
     'wired-mobile-frame': { migrations: WiredMobileFrameMigrations, props: WiredMobileFrameProps },
     'wired-container': { migrations: WiredContainerMigrations, props: WiredContainerProps },
