@@ -167,6 +167,13 @@ export const insertDiagramComponent = (editor: Editor, type: string) => {
             ] as any)
             safeGroup(editor, [bgId, s1, s2, s3, s4, s5])
         }
+        else if (type === 'wired-ia-node') {
+            const bgId = createShapeId()
+            editor.createShapes([
+                { id: bgId, type: 'wired-ia-node', x: center.x, y: center.y, props: { w: 180, h: 60, title: 'Screen Name', index: '1.0', color: '#6366f1' } }
+            ] as any)
+            editor.select(bgId)
+        }
     } catch (e: any) {
         console.error("Error in insertDiagramComponent", e)
     }
@@ -197,6 +204,13 @@ export const insertAnnotationComponent = (editor: Editor, type: string) => {
             editor.createShapes([
                 { id: arrowId, type: 'arrow', x: center.x, y: center.y, props: { start: { x: 0, y: 0 }, end: { x: 200, y: 0 }, arrowheadStart: 'arrow', arrowheadEnd: 'arrow', color: 'red', size: 's', richText: toRichText('200px') } },
             ] as any)
+        }
+        else if (type === 'wired-copy-note') {
+            const copyId = createShapeId()
+            editor.createShapes([
+                { id: copyId, type: 'wired-copy-note', x: center.x, y: center.y, props: { w: 200, h: 120, text: '여기에 마이크로카피나 텍스트를 입력하세요.', noteType: 'UX Copy' } }
+            ] as any)
+            editor.select(copyId)
         }
     } catch (e: any) {
         console.error("Error in insertAnnotationComponent", e)

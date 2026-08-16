@@ -198,6 +198,36 @@ export const WiredReferenceCardMigrations = createShapePropsMigrationSequence({
     sequence: []
 })
 
+
+export const WiredIaNodeProps = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    index: T.string,
+    color: T.string
+}
+
+export const WiredIaNodeMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
+export const WiredUiElementProps = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    pattern: T.string,
+    imageUrl: T.string
+}
+
+export const WiredUiElementMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
+export const WiredCopyNoteProps = {
+    w: T.number,
+    h: T.number,
+    text: T.string,
+    noteType: T.string
+}
+
+export const WiredCopyNoteMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
 export const customShapeSchemas = {
     'wired-asset-card': { migrations: WiredAssetCardMigrations, props: WiredAssetCardProps },
     'wired-reference-card': { migrations: WiredReferenceCardMigrations, props: WiredReferenceCardProps },
@@ -217,4 +247,7 @@ export const customShapeSchemas = {
     'wired-data-table': { migrations: WiredDataTableMigrations, props: WiredDataTableProps },
     'wired-user-flow-node': { migrations: WiredUserFlowNodeMigrations, props: WiredUserFlowNodeProps },
     'wired-modal': { migrations: WiredModalMigrations, props: WiredModalProps },
+    'wired-ia-node': { migrations: WiredIaNodeMigrations, props: WiredIaNodeProps },
+    'wired-ui-element': { migrations: WiredUiElementMigrations, props: WiredUiElementProps },
+    'wired-copy-note': { migrations: WiredCopyNoteMigrations, props: WiredCopyNoteProps },
 }

@@ -23,13 +23,16 @@ import { WiredMobileFrameShapeUtil } from './WiredMobileFrameShape'
 import { WiredBrowserFrameShapeUtil } from './WiredBrowserFrameShape'
 import { WiredUserFlowNodeShapeUtil } from './WiredUserFlowNodeShape'
 import { WiredAnnotationPinShapeUtil } from './WiredAnnotationPinShape'
+import { WiredIaNodeShapeUtil } from './WiredIaNodeShape'
+import { WiredUiElementShapeUtil } from './WiredUiElementShape'
+import { WiredCopyNoteShapeUtil } from './WiredCopyNoteShape'
 import { getLibraryIcon } from './libraryIcons'
 import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent, insertAnnotationComponent } from './libraryTemplates'
 
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAssetCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredReferenceCardShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAssetCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredReferenceCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredIaNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUiElementShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCopyNoteShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const allShapeUtils = [...defaultShapeUtils, ...customShapeUtils]
 
@@ -209,6 +212,11 @@ function LibrarySidebar() {
                 { id: bgId, type: 'wired-checkbox', x: center.x, y: center.y, props: { w: 120, h: 30, isChecked: false, label: "Check me" } }
             ] as any)
             editor.select(bgId)
+        } else if (type === 'wired-ui-element') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-ui-element', x: center.x, y: center.y, props: { w: 300, h: 200, title: 'Component Name', pattern: 'Bottom Sheet', imageUrl: '' } }
+            ] as any)
+            editor.select(bgId)
         }
     }
 
@@ -222,7 +230,8 @@ function LibrarySidebar() {
                 { label: "Progress Bar", type: "wired-progress", insert: insertDefaultComponent },
                 { label: "Data Table", type: "wired-data-table", insert: insertDefaultComponent },
                 { label: "Toggle", type: "wired-toggle", insert: insertDefaultComponent },
-                { label: "Checkbox", type: "wired-checkbox", insert: insertDefaultComponent }
+                { label: "Checkbox", type: "wired-checkbox", insert: insertDefaultComponent },
+                { label: "UI 패턴", type: "wired-ui-element", insert: insertDefaultComponent }
             ]
         },
         {
@@ -253,7 +262,8 @@ function LibrarySidebar() {
             items: [
                 { label: "유저 플로우 노드", type: "user-flow", insert: insertDiagramComponent },
                 { label: "사이트맵 뼈대", type: "sitemap", insert: insertDiagramComponent },
-                { label: "아이디어 보드 (포스트잇)", type: "sticky-cluster", insert: insertDiagramComponent }
+                { label: "아이디어 보드 (포스트잇)", type: "sticky-cluster", insert: insertDiagramComponent },
+                { label: "IA 노드", type: "wired-ia-node", insert: insertDiagramComponent }
             ]
         },
         {
@@ -261,7 +271,8 @@ function LibrarySidebar() {
             items: [
                 { label: "마우스 커서 / 포인터", type: "cursor-pointer", insert: insertAnnotationComponent },
                 { label: "코멘트 핀 (숫자 뱃지)", type: "comment-pin", insert: insertAnnotationComponent },
-                { label: "측정선 (Redlines)", type: "measurement-line", insert: insertAnnotationComponent }
+                { label: "측정선 (Redlines)", type: "measurement-line", insert: insertAnnotationComponent },
+                { label: "카피 노트", type: "wired-copy-note", insert: insertAnnotationComponent }
             ]
         }
     ]
@@ -488,7 +499,7 @@ function ResourceHubSidebar() {
                     tags: (item.tags || []).join(', '),
                     imageUrl: item.id ? `https://assets.sonagi.space/api/image/${item.id}/original` : ''
                 }
-            })
+            } as any)
         } else {
             editor.createShape({
                 type: 'wired-reference-card',
@@ -501,7 +512,7 @@ function ResourceHubSidebar() {
                     url: item.url || '',
                     imageUrl: item.imageUrl || ''
                 }
-            })
+            } as any)
         }
         if (isMobile) setIsOpen(false)
     }
