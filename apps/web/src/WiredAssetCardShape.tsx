@@ -114,6 +114,10 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
         }
     }
 
+    override getIndicatorPath(shape: any) {
+        return new Path2D(`M 0 0 L ${shape.props.w} 0 L ${shape.props.w} ${shape.props.h} L 0 ${shape.props.h} Z`)
+    }
+
     override indicator(shape: WiredAssetCardShape) {
         return <rect width={shape.props.w} height={shape.props.h} />
     }
