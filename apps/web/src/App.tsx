@@ -397,11 +397,11 @@ function LibrarySidebar() {
     )
 }
 
-export function AgentReceiver() {
+export function AgentReceiver({ roomId }: { roomId: string }) {
     const editor = useEditor();
 
     useEffect(() => {
-        const eventSource = new EventSource("https://assets.sonagi.space/canvas-stream");
+        const eventSource = new EventSource(`https://assets.sonagi.space/canvas-stream?room_id=${roomId}`);
         
         eventSource.onmessage = (event) => {
             try {
@@ -432,12 +432,12 @@ export function AgentReceiver() {
     return null;
 }
 
-function InFrontWrapper() {
+function InFrontWrapper({ roomId }: { roomId: string }) {
     const isMobile = useIsMobile()
     return (
         <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 'calc(56px + env(safe-area-inset-top, 0px))' : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
             <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
-                <AgentReceiver />
+                <AgentReceiver roomId={roomId} />
                 <ShareButton />
                 <LibrarySidebar />
             </div>
@@ -501,7 +501,7 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw store={storeSync} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: InFrontWrapper }} 
+            <Tldraw store={storeSync} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
