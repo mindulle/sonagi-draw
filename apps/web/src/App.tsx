@@ -436,6 +436,164 @@ export function AgentReceiver({ roomId }: { roomId: string }) {
     return null;
 }
 
+
+function ResourceHubSidebar() {
+    const isMobile = useIsMobile()
+    const editor = useEditor()
+    const [isOpen, setIsOpen] = useState(false)
+    const [query, setQuery] = useState("")
+    const [results, setResults] = useState<any[]>([])
+    const [loading, setLoading] = useState(false)
+    const [tab, setTab] = useState<'assets'|'refs'>('assets')
+
+    const searchResources = async () => {
+        if (!query.trim()) return
+        setLoading(true)
+        try {
+            if (tab === 'assets') {
+                const res = await fetch(`https://assets.sonagi.space/api/items?search=${encodeURIComponent(query)}&limit=10`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setResults(data)
+                }
+            } else {
+                // Placeholder for ref.sonagi.space search
+                // You can link this to a real API once ready
+                setResults([
+                    { id: 'mock1', title: 'Reference Mock', url: 'https://example.com', imageUrl: '' }
+                ])
+            }
+        } catch (e) {
+            console.error(e)
+            alert("검색 중 오류가 발생했습니다.")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const insertAsset = (item: any) => {
+        const bounds = editor.getViewportPageBounds()
+        const center = bounds.center
+
+        if (tab === 'assets') {
+            editor.createShape({
+                type: 'wired-asset-card',
+                x: center.x,
+                y: center.y,
+                props: {
+                    w: 240,
+                    h: 300,
+                    title: item.name || item.title,
+                    ext: item.ext || 'svg',
+                    tags: (item.tags || []).join(', '),
+                    imageUrl: item.id ? `https://assets.sonagi.space/api/image/${item.id}/original` : ''
+                }
+            })
+        } else {
+            editor.createShape({
+                type: 'wired-reference-card',
+                x: center.x,
+                y: center.y,
+                props: {
+                    w: 320,
+                    h: 240,
+                    title: item.title,
+                    url: item.url || '',
+                    imageUrl: item.imageUrl || ''
+                }
+            })
+        }
+        if (isMobile) setIsOpen(false)
+    }
+
+    if (!isOpen) {
+        return (
+            <button 
+                onClick={() => setIsOpen(true)}
+                style={{
+                    background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '8px',
+                    padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    pointerEvents: 'all'
+                }}
+            >
+                🔍 에셋 검색
+            </button>
+        )
+    }
+
+    return (
+        <div style={{
+            width: isMobile ? '100%' : '320px',
+            height: isMobile ? '50vh' : '400px',
+            background: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            display: 'flex', flexDirection: 'column',
+            overflow: 'hidden',
+            pointerEvents: 'all',
+            border: '1px solid #e5e7eb'
+        }}>
+            <div style={{ background: '#f3f4f6', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                        onClick={() => setTab('assets')}
+                        style={{ background: tab === 'assets' ? '#3b82f6' : '#e5e7eb', color: tab === 'assets' ? '#fff' : '#4b5563', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >Assets</button>
+                    <button 
+                        onClick={() => setTab('refs')}
+                        style={{ background: tab === 'refs' ? '#3b82f6' : '#e5e7eb', color: tab === 'refs' ? '#fff' : '#4b5563', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >References</button>
+                </div>
+                <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', fontSize: '16px', cursor: 'pointer' }}>✖</button>
+            </div>
+            
+            <div style={{ padding: '12px', display: 'flex', gap: '8px', borderBottom: '1px solid #e5e7eb' }}>
+                <input 
+                    type="text" 
+                    value={query} 
+                    onChange={e => setQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && searchResources()}
+                    placeholder="검색어 입력..."
+                    style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }}
+                />
+                <button 
+                    onClick={searchResources}
+                    disabled={loading}
+                    style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '0 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                >{loading ? '...' : '검색'}</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {results.map((item, i) => (
+                    <div 
+                        key={i} 
+                        onClick={() => insertAsset(item)}
+                        style={{ 
+                            display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', 
+                            background: '#f9fafb', borderRadius: '8px', cursor: 'pointer',
+                            border: '1px solid #e5e7eb', transition: 'background 0.2s'
+                        }}
+                    >
+                        <div style={{ width: '40px', height: '40px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', flexShrink: 0 }}>
+                            {(item.id || item.imageUrl) ? (
+                                <img src={item.imageUrl || `https://assets.sonagi.space/api/image/${item.id}/original`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : null}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{item.name || item.title}</span>
+                            <span style={{ fontSize: '12px', color: '#6b7280' }}>{tab === 'assets' ? item.ext : 'Reference'}</span>
+                        </div>
+                    </div>
+                ))}
+                {results.length === 0 && !loading && (
+                    <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '20px', fontSize: '14px' }}>검색 결과가 없습니다.</div>
+                )}
+            </div>
+        </div>
+    )
+}
+
 function InFrontWrapper({ roomId }: { roomId: string }) {
     const isMobile = useIsMobile()
     return (
@@ -443,6 +601,7 @@ function InFrontWrapper({ roomId }: { roomId: string }) {
             <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
                 <AgentReceiver roomId={roomId} />
                 <ShareButton />
+                <ResourceHubSidebar />
                 <LibrarySidebar />
             </div>
         </div>

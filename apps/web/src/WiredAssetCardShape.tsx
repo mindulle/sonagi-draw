@@ -81,7 +81,9 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
                             overflow: 'hidden'
                         }}>
                             {imageUrl ? (
-                                <img src={imageUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} />
+                                <a href={imageUrl} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' }}>
+                                    <img src={imageUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} title="새 탭에서 원본 보기" />
+                                </a>
                             ) : (
                                 <span style={{ color: '#ccc', fontSize: '14px' }}>No Image</span>
                             )}
@@ -96,8 +98,15 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
                             <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                                 {title}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ background: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{ext}</span>
+                            <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                    <span style={{ background: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{ext}</span>
+                                </div>
+                                {imageUrl && (
+                                    <a href={imageUrl} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 'bold', pointerEvents: 'all' }}>
+                                        원본 열기 ↗
+                                    </a>
+                                )}
                             </div>
                             {tags && (
                                 <div style={{ fontSize: '10px', color: '#4b5563', lineHeight: '1.2', marginTop: '2px', wordBreak: 'break-word', maxHeight: '40px', overflow: 'hidden' }}>
@@ -112,6 +121,10 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
             console.error("WiredAssetCardShape render error:", e)
             return <HTMLContainer id={shape.id}>Error: {e.message}</HTMLContainer>
         }
+    }
+
+    override getIndicatorPath(shape: any) {
+        return new Path2D(`M 0 0 L ${shape.props.w} 0 L ${shape.props.w} ${shape.props.h} L 0 ${shape.props.h} Z`)
     }
 
     override indicator(shape: WiredAssetCardShape) {
