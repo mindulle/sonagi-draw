@@ -1,0 +1,14 @@
+{
+  "name": "web",
+  "active": true,
+  "events": [
+    "push",
+    "pull_request",
+    "issues",
+    "issue_comment"
+  ],
+  "config": {
+    "url": "https://discord.com/api/webhooks/1534958755240874055/ng35SyAT0YxssgndXWFOsOyru30AJpk0Qi2qzHdG2LbwgCALjMeXvE00dNDz--aAlXwB/github",
+    "content_type": "json"
+  }
+}

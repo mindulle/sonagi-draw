@@ -1,0 +1,26 @@
+---
+- name: Ensure sonagi-draw directory exists
+  file:
+    path: /home/mindulle/sonagi-draw
+    state: directory
+    owner: mindulle
+    group: mindulle
+    mode: '0755'
+
+- name: Template docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /home/mindulle/sonagi-draw/docker-compose.yml
+    owner: mindulle
+    group: mindulle
+    mode: '0644'
+
+- name: Pull latest Docker images
+  command: docker compose pull
+  args:
+    chdir: /home/mindulle/sonagi-draw
+
+- name: Start sonagi-draw services
+  command: docker compose up -d
+  args:
+    chdir: /home/mindulle/sonagi-draw

@@ -11,6 +11,10 @@ import { WiredCheckboxShapeUtil } from './WiredCheckboxShape'
 import { WiredBarChartShapeUtil } from './WiredBarChartShape'
 import { WiredDonutChartShapeUtil } from './WiredDonutChartShape'
 import { WiredButtonShapeUtil } from './WiredButtonShape'
+
+import { WiredAssetCardShapeUtil } from './WiredAssetCardShape'
+import { WiredReferenceCardShapeUtil } from './WiredReferenceCardShape'
+
 import { WiredCardShapeUtil } from './WiredCardShape'
 import { WiredModalShapeUtil } from './WiredModalShape'
 import { WiredContainerShapeUtil } from './WiredContainerShape'
@@ -25,7 +29,7 @@ import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAssetCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredReferenceCardShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const allShapeUtils = [...defaultShapeUtils, ...customShapeUtils]
 
