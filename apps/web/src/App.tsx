@@ -425,9 +425,20 @@ export function AgentReceiver({ roomId }: { roomId: string }) {
 
                 if (data.shapes && Array.isArray(data.shapes)) {
                     if (data.assets && Array.isArray(data.assets)) {
-                        editor.createAssets(data.assets);
+                        try {
+                            editor.createAssets(data.assets);
+                        } catch (err) {
+                            console.error("AgentReceiver error creating assets:", err);
+                        }
                     }
-                    editor.createShapes(data.shapes);
+                    // 하나씩 개별 생성하여 오류 발생 시 전체 크래시를 방지
+                    for (const shape of data.shapes) {
+                        try {
+                            editor.createShape(shape);
+                        } catch (err) {
+                            console.error("AgentReceiver error creating shape:", shape, err);
+                        }
+                    }
                 }
             } catch (e) {
                 console.error("AgentReceiver error parsing event:", e);
