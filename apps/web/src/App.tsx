@@ -1,3 +1,5 @@
+import { WiredUiElementShapeUtil } from './WiredUiElementShape'
+import { WiredCopyNodeShapeUtil } from './WiredCopyNodeShape'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { CustomMainMenu } from "./CustomMainMenu"
@@ -24,7 +26,7 @@ import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUiElementShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCopyNodeShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const WORKER_URL = window.location.origin
 
@@ -202,10 +204,29 @@ function LibrarySidebar() {
                 { id: bgId, type: 'wired-checkbox', x: center.x, y: center.y, props: { w: 120, h: 30, isChecked: false, label: "Check me" } }
             ] as any)
             editor.select(bgId)
+        } else if (type === 'wired-ui-element') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-ui-element', x: center.x, y: center.y, props: { w: 320, h: 180, title: 'UI Component', elementUrl: '' } }
+            ] as any)
+            editor.select(bgId)
+        } else if (type === 'wired-copy-node') {
+            editor.createShapes([
+                { id: bgId, type: 'wired-copy-node', x: center.x, y: center.y, props: { w: 260, h: 120, copyText: 'UX Writing snippet goes here...', category: 'Empty State' } }
+            ] as any)
+            editor.select(bgId)
         }
     }
 
     const BUILTIN_CATEGORIES = [
+        {
+            category: "역기획 툴 (Reverse Engineering)",
+            items: [
+                { label: "Reference Card", type: "card", insert: insertDefaultComponent },
+                { label: "User Flow Node", type: "user-flow", insert: insertDiagramComponent },
+                { label: "UI Element", type: "wired-ui-element", insert: insertDefaultComponent },
+                { label: "UX Copy", type: "wired-copy-node", insert: insertDefaultComponent }
+            ]
+        },
         {
             category: "기본 UI 키트",
             items: [
