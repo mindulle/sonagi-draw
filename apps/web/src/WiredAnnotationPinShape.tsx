@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Circle2d, T, RecordProps } from 'tldraw'
+import { WiredAnnotationPinProps, WiredAnnotationPinMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Circle2d, RecordProps } from 'tldraw'
 
 export type WiredAnnotationPinShape = TLBaseShape<
     'wired-annotation-pin',
@@ -12,11 +13,8 @@ export type WiredAnnotationPinShape = TLBaseShape<
 // @ts-expect-error
 export class WiredAnnotationPinShapeUtil extends ShapeUtil<WiredAnnotationPinShape> {
     static override type = 'wired-annotation-pin' as const
-    static override props: RecordProps<WiredAnnotationPinShape> = {
-        r: T.number,
-        label: T.string,
-        color: T.string
-    }
+    static override props: RecordProps<any> = WiredAnnotationPinProps as any
+    static override migrations = WiredAnnotationPinMigrations
 
     override getDefaultProps(): WiredAnnotationPinShape['props'] {
         return {

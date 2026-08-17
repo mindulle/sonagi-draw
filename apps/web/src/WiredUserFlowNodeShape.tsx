@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredUserFlowNodeProps, WiredUserFlowNodeMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredUserFlowNodeShape = TLBaseShape<
     'wired-user-flow-node',
@@ -13,12 +14,8 @@ export type WiredUserFlowNodeShape = TLBaseShape<
 // @ts-expect-error
 export class WiredUserFlowNodeShapeUtil extends ShapeUtil<WiredUserFlowNodeShape> {
     static override type = 'wired-user-flow-node' as const
-    static override props: RecordProps<WiredUserFlowNodeShape> = {
-        w: T.number,
-        h: T.number,
-        title: T.string,
-        color: T.string
-    }
+    static override props: RecordProps<any> = WiredUserFlowNodeProps as any
+    static override migrations = WiredUserFlowNodeMigrations
 
     override getDefaultProps(): WiredUserFlowNodeShape['props'] {
         return {

@@ -3,15 +3,20 @@
   "version": "1.0.0",
   "main": "src/server.ts",
   "scripts": {
-    "start": "tsx src/server.ts"
+    "start": "tsx src/server.ts",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@sonagi-draw/schema": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1094.0",
+    "@aws-sdk/s3-request-presigner": "^3.1094.0",
     "@fastify/cors": "^10.0.0",
     "@fastify/websocket": "^11.0.0",
     "@sentry/node": "^10.66.0",
     "@sentry/profiling-node": "^10.66.0",
     "@tldraw/sync-core": "^5.2.5",
     "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2",
     "fastify": "^5.8.1",
     "unfurl.js": "^6.4.0",
     "ws": "^8.18.0"
@@ -21,6 +26,7 @@
     "@types/node": "^20.0.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   }
 }

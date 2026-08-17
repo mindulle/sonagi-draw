@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredButtonProps, WiredButtonMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredButtonShape = TLBaseShape<
     'wired-button',
@@ -13,12 +14,8 @@ export type WiredButtonShape = TLBaseShape<
 // @ts-expect-error
 export class WiredButtonShapeUtil extends ShapeUtil<WiredButtonShape> {
     static override type = 'wired-button' as const
-    static override props: RecordProps<WiredButtonShape> = {
-        w: T.number,
-        h: T.number,
-        text: T.string,
-        color: T.string
-    }
+    static override props: RecordProps<any> = WiredButtonProps as any
+    static override migrations = WiredButtonMigrations
 
     override getDefaultProps(): WiredButtonShape['props'] {
         return {

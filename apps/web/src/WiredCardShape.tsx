@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredCardProps, WiredCardMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredCardShape = TLBaseShape<
     'wired-card',
@@ -12,11 +13,8 @@ export type WiredCardShape = TLBaseShape<
 // @ts-expect-error
 export class WiredCardShapeUtil extends ShapeUtil<WiredCardShape> {
     static override type = 'wired-card' as const
-    static override props: RecordProps<WiredCardShape> = {
-        w: T.number,
-        h: T.number,
-        title: T.string
-    }
+    static override props: RecordProps<any> = WiredCardProps as any
+    static override migrations = WiredCardMigrations
 
     override getDefaultProps(): WiredCardShape['props'] {
         return {

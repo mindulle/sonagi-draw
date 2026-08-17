@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  web:
+    image: ghcr.io/mindulle/sonagi-draw-web:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - sync-server
+    restart: always
+
+  sync-server:
+    image: ghcr.io/mindulle/sonagi-draw-sync:latest
+    ports:
+      - "5858:5858"
+    volumes:
+      - ./data/.rooms:/app/apps/sync-server/.rooms
+      - ./data/.assets:/app/apps/sync-server/.assets
+    restart: always
+    environment:
+      - NODE_ENV=production

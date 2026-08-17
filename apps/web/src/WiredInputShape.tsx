@@ -1,4 +1,5 @@
-import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, T, RecordProps } from 'tldraw'
+import { WiredInputProps, WiredInputMigrations } from '@sonagi-draw/schema'
+import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
 
 export type WiredInputShape = TLBaseShape<
     'wired-input',
@@ -12,11 +13,8 @@ export type WiredInputShape = TLBaseShape<
 // @ts-expect-error
 export class WiredInputShapeUtil extends ShapeUtil<WiredInputShape> {
     static override type = 'wired-input' as const
-    static override props: RecordProps<WiredInputShape> = {
-        w: T.number,
-        h: T.number,
-        placeholder: T.string
-    }
+    static override props: RecordProps<any> = WiredInputProps as any
+    static override migrations = WiredInputMigrations
 
     override getDefaultProps(): WiredInputShape['props'] {
         return {
