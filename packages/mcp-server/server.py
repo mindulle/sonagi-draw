@@ -327,50 +327,36 @@ def add_wireframe_box(room_id: str, x: float, y: float, w: float, h: float, text
 def get_room_state(room_id: str, page_id: Optional[str] = None) -> Dict[str, Any]:
     """
     [Phase 3] 현재 캔버스 상태(Shape) 목록 반환 (Make Real 연동용)
-    page_id(예: 'page:wireframe')를 지정하면 해당 페이지 내의 모든 도형만 필터링하여 반환합니다.
+    page_id(예: 'page:wireframe')를 지정하면 해당 페이지의 도형만 반환합니다.
+
+    CEO-933: 예전에는 이 툴이 Python MCP 서버의 로컬 SQLite 미러(DB_DIR)를 직접 읽었음.
+    그런데 이 로컬 미러는 실제 프로덕션(devops의 sync-server)과 동기화되는 메커니즘이
+    없는 것으로 확인됨(Syncthing이 이 경로를 전혀 관리하지 않음) - 즉 add_shape_to_db로
+    직접 SQL을 쓴 내용은 로컬 미러에는 보이지만 실제 라이브 룸에는 절대 반영되지 않는데도
+    이 툴은 그걸 정상인 것처럼 보고하고 있었음. 이제 canvas_bridge.mjs를 통해 실제
+    window.editor의 라이브 상태를 직접 읽도록 변경 (get_page_shapes_live와 동일한 원리).
     """
-    db_path = get_db_path(room_id)
-    if not os.path.exists(db_path):
-        return {"error": f"Room ID '{room_id}' not found."}
-        
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    
-    # 페이지 목록 조회
-    c.execute("SELECT state FROM documents WHERE id LIKE 'page:%'")
-    pages = [json.loads(row[0]) for row in c.fetchall()]
-    
-    # 전체 도형 조회
-    c.execute("SELECT state FROM documents WHERE id LIKE 'shape:%'")
-    all_shapes = [json.loads(row[0]) for row in c.fetchall()]
-    conn.close()
-    
-    # 특정 페이지 필터링 로직 (Frame이나 Group 안에 묶인 도형까지 전부 찾기 위한 트리 순회)
-    if page_id:
-        target_shapes = []
-        parent_ids_to_search = {page_id}
-        
-        while parent_ids_to_search:
-            next_parent_ids = set()
-            for shape in all_shapes:
-                if shape.get("parentId") in parent_ids_to_search:
-                    target_shapes.append(shape)
-                    next_parent_ids.add(shape["id"])
-                    
-            # 이미 타겟으로 잡힌 도형은 탐색 풀에서 제외 (무한루프 및 중복 방지)
-            all_shapes = [s for s in all_shapes if s["id"] not in next_parent_ids]
-            parent_ids_to_search = next_parent_ids
-            
-        shapes_to_return = target_shapes
-    else:
-        shapes_to_return = all_shapes
-        
+    args = {
+        "action": "get_room_state",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "pageId": page_id,
+    }
+    result_json = _run_bridge(args)
+    try:
+        result = json.loads(result_json)
+    except json.JSONDecodeError:
+        return {"error": f"bridge 응답을 파싱할 수 없습니다: {result_json}"}
+
+    if not result.get("ok"):
+        return {"error": result.get("error", "unknown error"), "details": result}
+
     return {
         "room_id": room_id,
         "page_id": page_id or "all",
-        "available_pages": [{"id": p.get("id"), "name": p.get("name")} for p in pages],
-        "total_shapes": len(shapes_to_return),
-        "shapes": shapes_to_return
+        "available_pages": result.get("available_pages", []),
+        "total_shapes": result.get("total_shapes", 0),
+        "shapes": result.get("shapes", []),
     }
 
 @mcp.tool()
