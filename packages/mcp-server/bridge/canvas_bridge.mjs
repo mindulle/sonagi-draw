@@ -62,9 +62,23 @@ async function main() {
 			case 'get_page_shapes':
 				result = await getPageShapes(page, args)
 				break
+			case 'add_sticky_note':
+				result = await addStickyNote(page, args)
+				break
+			case 'add_wireframe_box':
+				result = await addWireframeBox(page, args)
+				break
 			default:
 				throw new Error(`Unknown action: ${action}`)
 		}
+
+		// The tldraw sync client sends store changes to the server over the
+		// WebSocket asynchronously; editor.createShapes()/updateShapes() return
+		// before that message has necessarily been flushed. Without this wait,
+		// closing the browser right after a mutation can drop the shape entirely
+		// (verified: get_page_shapes right after add_wireframe_box/add_sticky_note
+		// showed 0 shapes without this delay, vs. correctly showing them with it).
+		await page.waitForTimeout(1000)
 
 		if (pageErrors.length > 0) {
 			// Any uncaught error thrown inside the page during our operation means
@@ -141,6 +155,101 @@ async function pushToInbox(page, { pageName, title, items = [], shapeId }) {
 			}
 		},
 		{ pageName, title, items, shapeId }
+	)
+}
+
+/** Mirrors apps/web/src/libraryTemplates.ts::toRichText - keep in sync. */
+function toRichText(text) {
+	return {
+		type: 'doc',
+		content: (text || '')
+			.split('\n')
+			.map((line) => (line ? { type: 'paragraph', content: [{ type: 'text', text: line }] } : { type: 'paragraph' })),
+	}
+}
+
+async function addStickyNote(page, { pageId, pageName, text, x, y, color = 'yellow' }) {
+	const richText = toRichText(text || '')
+	return page.evaluate(
+		({ pageId, pageName, x, y, color, richText }) => {
+			const editor = window.editor
+			const pages = editor.getPages()
+			const identifier = pageId || pageName
+			const targetPage = identifier
+				? pages.find((p) => p.id === identifier || p.name === identifier)
+				: editor.getCurrentPage()
+			if (!targetPage) throw new Error(`Page not found: ${identifier}`)
+			editor.setCurrentPage(targetPage.id)
+
+			const before = new Set(editor.getCurrentPageShapes().map((s) => s.id))
+			editor.createShapes([
+				{
+					type: 'note',
+					x,
+					y,
+					props: { color, richText },
+				},
+			])
+			const after = editor.getCurrentPageShapes()
+			const created = after.find((s) => s.type === 'note' && !before.has(s.id))
+			if (!created) throw new Error('Failed to locate newly created note shape')
+			return { shapeId: created.id, pageId: targetPage.id }
+		},
+		{ pageId, pageName, x, y, color, richText }
+	)
+}
+
+async function addWireframeBox(page, { pageId, pageName, x, y, w, h, text }) {
+	const richText = text ? toRichText(text) : null
+	return page.evaluate(
+		({ pageId, pageName, x, y, w, h, text, richText }) => {
+			const editor = window.editor
+			const pages = editor.getPages()
+			const identifier = pageId || pageName
+			const targetPage = identifier
+				? pages.find((p) => p.id === identifier || p.name === identifier)
+				: editor.getCurrentPage()
+			if (!targetPage) throw new Error(`Page not found: ${identifier}`)
+			editor.setCurrentPage(targetPage.id)
+
+			const before = new Set(editor.getCurrentPageShapes().map((s) => s.id))
+			editor.createShapes([
+				{
+					type: 'geo',
+					x,
+					y,
+					props: { geo: 'rectangle', w, h, color: 'grey', fill: 'none' },
+				},
+			])
+			const afterRect = editor.getCurrentPageShapes()
+			const rect = afterRect.find((s) => s.type === 'geo' && !before.has(s.id))
+			if (!rect) throw new Error('Failed to locate newly created geo shape')
+
+			let labelId = null
+			if (text) {
+				const beforeText = new Set(afterRect.map((s) => s.id))
+				editor.createShapes([
+					{
+						type: 'text',
+						x: x + w / 2 - 100,
+						y: y + h / 2 - 20,
+						props: {
+							color: 'black',
+							size: 'm',
+							w: 200,
+							textAlign: 'middle',
+							autoSize: true,
+							richText,
+						},
+					},
+				])
+				const afterText = editor.getCurrentPageShapes()
+				const label = afterText.find((s) => s.type === 'text' && !beforeText.has(s.id))
+				if (label) labelId = label.id
+			}
+			return { shapeId: rect.id, labelId, pageId: targetPage.id }
+		},
+		{ pageId, pageName, x, y, w, h, text, richText }
 	)
 }
 

@@ -277,9 +277,21 @@ def add_sticky_note(room_id: str, text: str, x: float, y: float, color: str = "y
     db_path = get_db_path(room_id)
     if not os.path.exists(db_path):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
-        
-    add_shape_to_db(db_path, create_note_shape(x, y, text, color=color, parent_id=page_id))
-    return f"✅ 포스트잇 부착 완료: Room {room_id} (x:{x}, y:{y}, text:'{text}', page:'{page_id}')"
+
+    # CEO-933: routed through canvas_bridge.mjs (real window.editor API) instead
+    # of add_shape_to_db's raw SQL INSERT, which could write shapes with
+    # non-conformant fractional indices and crash sync-server on load.
+    args = {
+        "action": "add_sticky_note",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "pageId": page_id,
+        "text": text,
+        "x": x,
+        "y": y,
+        "color": color,
+    }
+    return _run_bridge(args)
 
 @mcp.tool()
 def add_wireframe_box(room_id: str, x: float, y: float, w: float, h: float, text: str = "", page_id: str = "page:wireframe") -> str:
@@ -296,15 +308,20 @@ def add_wireframe_box(room_id: str, x: float, y: float, w: float, h: float, text
     db_path = get_db_path(room_id)
     if not os.path.exists(db_path):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
-        
-    add_shape_to_db(db_path, create_rect_shape(x, y, w, h, color="grey", fill="none", parent_id=page_id))
-    
-    if text:
-        text_x = x + (w / 2) - 100
-        text_y = y + (h / 2) - 20
-        add_shape_to_db(db_path, create_text_shape(text_x, text_y, text, color="black", size="m", parent_id=page_id))
-        
-    return f"✅ 와이어프레임 박스 생성 완료: Room {room_id} (x:{x}, y:{y}, w:{w}, h:{h}, text:'{text}', page:'{page_id}')"
+
+    # CEO-933: routed through canvas_bridge.mjs, see add_sticky_note above.
+    args = {
+        "action": "add_wireframe_box",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "pageId": page_id,
+        "x": x,
+        "y": y,
+        "w": w,
+        "h": h,
+        "text": text,
+    }
+    return _run_bridge(args)
 
 @mcp.tool()
 def get_room_state(room_id: str, page_id: Optional[str] = None) -> Dict[str, Any]:
