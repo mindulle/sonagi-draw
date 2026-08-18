@@ -68,6 +68,9 @@ async function main() {
 			case 'add_wireframe_box':
 				result = await addWireframeBox(page, args)
 				break
+			case 'get_room_state':
+				result = await getRoomState(page, args)
+				break
 			default:
 				throw new Error(`Unknown action: ${action}`)
 		}
@@ -250,6 +253,67 @@ async function addWireframeBox(page, { pageId, pageName, x, y, w, h, text }) {
 			return { shapeId: rect.id, labelId, pageId: targetPage.id }
 		},
 		{ pageId, pageName, x, y, w, h, text, richText }
+	)
+}
+
+/**
+ * Replaces server.py's old get_room_state, which read the Python side's local
+ * SQLite mirror directly. That mirror is not reliably kept in sync with the
+ * real production room (verified: Syncthing isn't even configured for that
+ * path), so it could report shapes that were never actually written to the
+ * live room, or miss shapes that were. This reads the *actual* live editor
+ * state instead, the same way get_page_shapes/get_page_shapes_live already do.
+ */
+async function getRoomState(page, { pageId, pageName }) {
+	return page.evaluate(
+		({ pageId, pageName }) => {
+			const editor = window.editor
+			const pages = editor.getPages()
+			const availablePages = pages.map((p) => ({ id: p.id, name: p.name }))
+
+			const serializeShape = (s) => ({
+				x: s.x,
+				y: s.y,
+				rotation: s.rotation,
+				isLocked: s.isLocked,
+				opacity: s.opacity,
+				meta: s.meta,
+				id: s.id,
+				type: s.type,
+				props: s.props,
+				parentId: s.parentId,
+				index: s.index,
+				typeName: s.typeName,
+			})
+
+			const identifier = pageId || pageName
+			const originalPageId = editor.getCurrentPage().id
+			let targetPages = pages
+			if (identifier) {
+				const found = pages.find((p) => p.id === identifier || p.name === identifier)
+				if (!found) throw new Error(`Page not found: ${identifier}`)
+				targetPages = [found]
+			}
+
+			const shapes = []
+			for (const p of targetPages) {
+				editor.setCurrentPage(p.id)
+				for (const shape of editor.getCurrentPageShapes()) {
+					shapes.push(serializeShape(shape))
+				}
+			}
+			// Restore whatever page this headless session originally landed on,
+			// out of caution (shouldn't affect other connected clients' own
+			// per-session current-page state, but keep this session tidy anyway).
+			editor.setCurrentPage(originalPageId)
+
+			return {
+				available_pages: availablePages,
+				total_shapes: shapes.length,
+				shapes,
+			}
+		},
+		{ pageId, pageName }
 	)
 }
 
