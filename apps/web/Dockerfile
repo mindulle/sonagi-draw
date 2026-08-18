@@ -1,11 +1,8 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm@9.1.0
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/web/package.json apps/web/
-COPY packages/tldraw-schema/package.json packages/tldraw-schema/
-RUN pnpm install --frozen-lockfile
 COPY . .
+RUN pnpm install --frozen-lockfile
 RUN pnpm -r build
 
 FROM nginx:alpine
