@@ -1,0 +1,10 @@
+{
+  "name": "@sonagi-draw/mcp-server-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-automation bridge used by the Python MCP server to safely drive the Tldraw editor (window.editor) instead of touching SQLite/REST directly.",
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

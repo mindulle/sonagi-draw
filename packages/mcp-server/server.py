@@ -13,9 +13,16 @@ from mcp.server.fastmcp import FastMCP
 # FastMCP 초기화
 mcp = FastMCP("sonagi-draw-mcp")
 
-# Tldraw DB 경로 (컨테이너 볼륨 마운트 경로)
-DB_DIR = "/home/mindulle/sonagi-draw/data/.rooms"
-TEMPLATE_DIR = "/home/mindulle/sonagi-draw/data/.templates"
+# Tldraw DB 경로 (llmops 로컬 미러 - Syncthing으로 devops:/home/mindulle/sonagi-draw/data와 동기화됨)
+# 주의: get_room_state 등 "읽기 전용" 조회 도구만 이 경로를 직접 사용합니다.
+# 도형을 "쓰는" 모든 도구(push_to_inbox 등)는 이제 SQLite를 직접 건드리지 않고
+# bridge/canvas_bridge.mjs를 통해 실제 Tldraw Editor API로 안전하게 기록합니다.
+DB_DIR = "/home/ubuntu/sonagi-draw-prod/.rooms"
+TEMPLATE_DIR = "/home/ubuntu/sonagi-draw-prod/.templates"
+
+# canvas_bridge.mjs 위치 및 배포된 화이트보드 URL (Nginx 프록시 경유)
+BRIDGE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bridge", "canvas_bridge.mjs")
+DRAW_BASE_URL = "https://draw.sonagi.space"
 
 import string
 
@@ -409,75 +416,88 @@ def cleanup_all_test_rooms() -> str:
             
     return f"✅ 방 일괄 정리 완료: 총 {count}개의 테스트 방이 삭제되었습니다."
 
-if __name__ == "__main__":
-    mcp.run()
+@mcp.tool()
+def push_to_inbox(room_id: str, title: Optional[str] = None, items: Optional[List[Dict[str, Any]]] = None,
+                   page_name: Optional[str] = None) -> str:
+    """
+    에이전트가 캔버스에 직접 SQL이나 REST API를 건드리지 않고, 실제 브라우저 자동화(Playwright)로
+    Tldraw의 공식 Editor API(window.editor)를 호출하여 <WiredMcpInboxShape> 컴포넌트에
+    데이터(텍스트, 레퍼런스 이미지 등)를 안전하게 push하는 도구입니다.
+
+    해당 페이지에 이미 인박스가 있으면 내용을 이어붙이고(merge), 없으면 새로 생성합니다.
+    - items 예시: [{"text": "설명"}, {"imageUrl": "https://..."}]
+    - page_name을 지정하지 않으면 마지막으로 열려있던 페이지를 사용합니다.
+    """
+    items = items or []
+    args = {
+        "action": "push_to_inbox",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "pageName": page_name,
+        "title": title,
+        "items": items,
+    }
+    return _run_bridge(args)
 
 
 @mcp.tool()
-def push_to_inbox(room_id: str, title: str, items: List[Dict[str, Any]]) -> str:
+def get_page_shapes_live(room_id: str, page_name: Optional[str] = None) -> Dict[str, Any]:
     """
-    에이전트가 캔버스에 직접 도형을 그리지 않고, 안전하게 'WiredMcpInboxShape' 컴포넌트에
-    데이터(텍스트, 레퍼런스 이미지 등)를 푸시하는 도구입니다.
-    items 예시: [{"text": "설명"}, {"imageUrl": "https://..."}]
+    [실시간 조회] SQLite 파일이 아니라 실제 브라우저(Playwright)로 접속하여
+    현재 페이지에 렌더링되어 있는 도형 목록(id, type, x, y)을 그대로 가져옵니다.
+    get_room_state()보다 느리지만, Syncthing 동기화 지연 없이 지금 이 순간의 실제 상태를 봅니다.
     """
-    db_path = get_db_path(room_id)
-    if not os.path.exists(db_path):
-        return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
-        
-    # 1. SQLite를 읽어서 wired-mcp-inbox 도형을 찾습니다. (읽기는 안전함)
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT id, state FROM documents WHERE id LIKE 'shape:%'")
-    shapes = c.fetchall()
-    
-    inbox_shape = None
-    for sid, sstate in shapes:
+    args = {
+        "action": "get_page_shapes",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "pageName": page_name,
+    }
+    result = json.loads(_run_bridge(args))
+    return result
+
+
+def _run_bridge(args: Dict[str, Any]) -> str:
+    """canvas_bridge.mjs (Playwright + window.editor)를 서브프로세스로 실행하고 결과를 반환합니다."""
+    import subprocess
+    import tempfile
+
+    if not os.path.exists(BRIDGE_SCRIPT):
+        return f"❌ 오류: bridge 스크립트를 찾을 수 없습니다: {BRIDGE_SCRIPT}"
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(args, f, ensure_ascii=False)
+        args_path = f.name
+
+    try:
+        proc = subprocess.run(
+            ["node", BRIDGE_SCRIPT, args_path],
+            cwd=os.path.dirname(BRIDGE_SCRIPT),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        stdout = (proc.stdout or "").strip()
+        if not stdout:
+            return f"❌ 오류: bridge 스크립트가 아무 출력도 반환하지 않았습니다. stderr: {proc.stderr[-2000:]}"
+
         try:
-            state = json.loads(sstate.decode('utf-8') if isinstance(sstate, bytes) else sstate)
-            if state.get("type") == "wired-mcp-inbox":
-                inbox_shape = state
-                break
-        except: pass
-    
-    conn.close()
-    
-    if not inbox_shape:
-        return "❌ 오류: 캔버스에 <WiredMcpInboxShape> 도형이 없습니다. 유저에게 캔버스에 툴을 추가해 달라고 요청하세요."
-        
-    # 2. Payload 업데이트
-    inbox_shape["props"]["title"] = title
-    
-    # 기존 payload 파싱 후 합치기
-    existing_payload = []
-    try:
-        if inbox_shape["props"]["payload"]:
-            existing_payload = json.loads(inbox_shape["props"]["payload"])
-    except: pass
-    
-    existing_payload.extend(items)
-    inbox_shape["props"]["payload"] = json.dumps(existing_payload)
-    
-    # 시간 업데이트
-    inbox_shape["lastChangedClock"] = int(time.time() * 1000) # Sync-core usually manages this, but giving it a bump is fine.
-    
-    # 3. 새로운 안전한 REST API (sync-server)로 찔러넣기
-    # API가 업데이트된 도형 1개를 받으면 트랜잭션으로 메모리와 DB를 동시 업데이트합니다.
-    try:
-        # sync-server는 로컬호스트(또는 도커 네트워크) 5858번 포트에서 돕니다.
-        # 운영 환경(llmops)에서 devops의 5858로 보내야 하는데, tailscale IP를 모르면 DNS 프록시 사용.
-        # draw.sonagi.space는 80/443이고 sync는 5858입니다.
-        # MCP 서버는 llmops에서 도니까, devops의 IP(192.168.0.2)로 못 감! (직접 라우팅 불가)
-        # 하지만 sonagi-draw-prod의 nginx-custom.conf가 /api/를 5858로 프록시해주나요?
-        pass
-    except Exception as e:
-        return f"❌ API 호출 실패: {e}"
-    
-    # Nginx 프록시를 통해 API 쏘기: https://draw.sonagi.space/api/rooms/{room_id}/inject
-    api_url = f"https://draw.sonagi.space/api/rooms/{room_id}/inject"
-    
-    try:
-        resp = httpx.post(api_url, json=[inbox_shape], timeout=10.0)
-        resp.raise_for_status()
-        return f"✅ 성공적으로 MCP Inbox에 데이터를 밀어넣었습니다. (아이템 수: {len(items)})"
-    except Exception as e:
-        return f"❌ API 에러: {e} (URL: {api_url})"
+            result = json.loads(stdout.splitlines()[-1])
+        except json.JSONDecodeError:
+            return f"❌ 오류: bridge 응답을 파싱할 수 없습니다: {stdout[-2000:]}"
+
+        if not result.get("ok"):
+            return f"❌ 오류: {result.get('error', 'unknown error')} (details: {result})"
+
+        return json.dumps(result, ensure_ascii=False)
+    except subprocess.TimeoutExpired:
+        return "❌ 오류: bridge 스크립트가 60초 내에 응답하지 않았습니다 (타임아웃)."
+    finally:
+        try:
+            os.remove(args_path)
+        except OSError:
+            pass
+
+
+if __name__ == "__main__":
+    mcp.run()
