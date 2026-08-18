@@ -1,6 +1,6 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm@8
+RUN npm install -g pnpm@9.1.0
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/tldraw-schema/package.json packages/tldraw-schema/
