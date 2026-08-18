@@ -33,6 +33,12 @@ export class WiredStatusBadgeShapeUtil extends ShapeUtil<WiredStatusBadgeShape> 
         )
     }
 
+    override getIndicatorPath(shape: WiredStatusBadgeShape) {
+        const path = new Path2D()
+        path.roundRect(0, 0, shape.props.w, shape.props.h, 16)
+        return path
+    }
+
     override indicator(shape: WiredStatusBadgeShape) {
         return <rect width={shape.props.w} height={shape.props.h} rx={16} ry={16} />
     }

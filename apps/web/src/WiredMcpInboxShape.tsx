@@ -51,6 +51,12 @@ export class WiredMcpInboxShapeUtil extends ShapeUtil<WiredMcpInboxShape> {
         )
     }
 
+    override getIndicatorPath(shape: WiredMcpInboxShape) {
+        const path = new Path2D()
+        path.roundRect(0, 0, shape.props.w, shape.props.h, 12)
+        return path
+    }
+
     override indicator(shape: WiredMcpInboxShape) {
         return <rect width={shape.props.w} height={shape.props.h} rx={12} ry={12} />
     }

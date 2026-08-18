@@ -34,6 +34,10 @@ export class WiredTokenSwatchShapeUtil extends ShapeUtil<WiredTokenSwatchShape> 
         )
     }
 
+    override getIndicatorPath(shape: WiredTokenSwatchShape) {
+        return new Path2D(`M 0 0 L ${shape.props.w} 0 L ${shape.props.w} ${shape.props.h} L 0 ${shape.props.h} Z`)
+    }
+
     override indicator(shape: WiredTokenSwatchShape) {
         return <rect width={shape.props.w} height={shape.props.h} rx={8} ry={8} />
     }
