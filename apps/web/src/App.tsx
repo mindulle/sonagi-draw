@@ -696,6 +696,12 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+                onMount={(editor) => {
+                    // [Agentic Access] Expose the official Tldraw Editor instance on window
+                    // so MCP/agent automation (e.g. Playwright) can safely call editor.createShapes()
+                    // etc. through the validated in-memory store instead of touching SQLite directly.
+                    ;(window as any).editor = editor
+                }}
             />
         </div>
     )

@@ -411,3 +411,73 @@ def cleanup_all_test_rooms() -> str:
 
 if __name__ == "__main__":
     mcp.run()
+
+
+@mcp.tool()
+def push_to_inbox(room_id: str, title: str, items: List[Dict[str, Any]]) -> str:
+    """
+    에이전트가 캔버스에 직접 도형을 그리지 않고, 안전하게 'WiredMcpInboxShape' 컴포넌트에
+    데이터(텍스트, 레퍼런스 이미지 등)를 푸시하는 도구입니다.
+    items 예시: [{"text": "설명"}, {"imageUrl": "https://..."}]
+    """
+    db_path = get_db_path(room_id)
+    if not os.path.exists(db_path):
+        return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
+        
+    # 1. SQLite를 읽어서 wired-mcp-inbox 도형을 찾습니다. (읽기는 안전함)
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("SELECT id, state FROM documents WHERE id LIKE 'shape:%'")
+    shapes = c.fetchall()
+    
+    inbox_shape = None
+    for sid, sstate in shapes:
+        try:
+            state = json.loads(sstate.decode('utf-8') if isinstance(sstate, bytes) else sstate)
+            if state.get("type") == "wired-mcp-inbox":
+                inbox_shape = state
+                break
+        except: pass
+    
+    conn.close()
+    
+    if not inbox_shape:
+        return "❌ 오류: 캔버스에 <WiredMcpInboxShape> 도형이 없습니다. 유저에게 캔버스에 툴을 추가해 달라고 요청하세요."
+        
+    # 2. Payload 업데이트
+    inbox_shape["props"]["title"] = title
+    
+    # 기존 payload 파싱 후 합치기
+    existing_payload = []
+    try:
+        if inbox_shape["props"]["payload"]:
+            existing_payload = json.loads(inbox_shape["props"]["payload"])
+    except: pass
+    
+    existing_payload.extend(items)
+    inbox_shape["props"]["payload"] = json.dumps(existing_payload)
+    
+    # 시간 업데이트
+    inbox_shape["lastChangedClock"] = int(time.time() * 1000) # Sync-core usually manages this, but giving it a bump is fine.
+    
+    # 3. 새로운 안전한 REST API (sync-server)로 찔러넣기
+    # API가 업데이트된 도형 1개를 받으면 트랜잭션으로 메모리와 DB를 동시 업데이트합니다.
+    try:
+        # sync-server는 로컬호스트(또는 도커 네트워크) 5858번 포트에서 돕니다.
+        # 운영 환경(llmops)에서 devops의 5858로 보내야 하는데, tailscale IP를 모르면 DNS 프록시 사용.
+        # draw.sonagi.space는 80/443이고 sync는 5858입니다.
+        # MCP 서버는 llmops에서 도니까, devops의 IP(192.168.0.2)로 못 감! (직접 라우팅 불가)
+        # 하지만 sonagi-draw-prod의 nginx-custom.conf가 /api/를 5858로 프록시해주나요?
+        pass
+    except Exception as e:
+        return f"❌ API 호출 실패: {e}"
+    
+    # Nginx 프록시를 통해 API 쏘기: https://draw.sonagi.space/api/rooms/{room_id}/inject
+    api_url = f"https://draw.sonagi.space/api/rooms/{room_id}/inject"
+    
+    try:
+        resp = httpx.post(api_url, json=[inbox_shape], timeout=10.0)
+        resp.raise_for_status()
+        return f"✅ 성공적으로 MCP Inbox에 데이터를 밀어넣었습니다. (아이템 수: {len(items)})"
+    except Exception as e:
+        return f"❌ API 에러: {e} (URL: {api_url})"
