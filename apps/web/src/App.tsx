@@ -482,7 +482,14 @@ function ResourceHubSidebar() {
                 const res = await fetch(`https://assets.sonagi.space/api/items?search=${encodeURIComponent(query)}&limit=10`)
                 if (res.ok) {
                     const data = await res.json()
-                    setResults(data)
+                    // GET /api/items returns { total, items: [...] }, not a bare array.
+                    // Setting `results` to the whole object here used to crash the
+                    // sidebar with "results.map is not a function" as soon as a search
+                    // actually returned a hit (empty results masked it, since the
+                    // initial state is already []).
+                    setResults(Array.isArray(data) ? data : (data.items || []))
+                } else {
+                    setResults([])
                 }
             } else {
                 // Placeholder for ref.sonagi.space search
