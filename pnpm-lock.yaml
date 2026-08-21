@@ -130,6 +130,12 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(jsdom@29.1.1)(vite@7.3.6(@types/node@20.19.43)(tsx@4.23.1))
 
+  packages/mcp-server:
+    dependencies:
+      playwright:
+        specifier: ^1.61.1
+        version: 1.61.1
+
   packages/tldraw-schema:
     dependencies:
       '@tldraw/tlschema':

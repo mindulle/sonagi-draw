@@ -228,6 +228,45 @@ export const WiredCopyNoteProps = {
 
 export const WiredCopyNoteMigrations = createShapePropsMigrationSequence({ sequence: [] })
 
+
+export const WiredMeasurementProps = {
+    w: T.number,
+    h: T.number,
+    axis: T.string,
+    value: T.string,
+    color: T.string
+}
+
+export const WiredMeasurementMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
+export const WiredTokenSwatchProps = {
+    w: T.number,
+    h: T.number,
+    colorHex: T.string,
+    tokenName: T.string,
+    role: T.string
+}
+
+export const WiredTokenSwatchMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
+export const WiredStatusBadgeProps = {
+    w: T.number,
+    h: T.number,
+    status: T.string,
+    label: T.string
+}
+
+export const WiredStatusBadgeMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
+export const WiredMcpInboxProps = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    payload: T.string
+}
+
+export const WiredMcpInboxMigrations = createShapePropsMigrationSequence({ sequence: [] })
+
 export const customShapeSchemas = {
     'wired-asset-card': { migrations: WiredAssetCardMigrations, props: WiredAssetCardProps },
     'wired-reference-card': { migrations: WiredReferenceCardMigrations, props: WiredReferenceCardProps },
@@ -240,6 +279,11 @@ export const customShapeSchemas = {
     'wired-toggle': { migrations: WiredToggleMigrations, props: WiredToggleProps },
     'wired-bar-chart': { migrations: WiredBarChartMigrations, props: WiredBarChartProps },
     'wired-input': { migrations: WiredInputMigrations, props: WiredInputProps },
+
+    'wired-measurement': { migrations: WiredMeasurementMigrations, props: WiredMeasurementProps },
+    'wired-token-swatch': { migrations: WiredTokenSwatchMigrations, props: WiredTokenSwatchProps },
+    'wired-status-badge': { migrations: WiredStatusBadgeMigrations, props: WiredStatusBadgeProps },
+    'wired-mcp-inbox': { migrations: WiredMcpInboxMigrations, props: WiredMcpInboxProps },
     'wired-browser-frame': { migrations: WiredBrowserFrameMigrations, props: WiredBrowserFrameProps },
     'wired-annotation-pin': { migrations: WiredAnnotationPinMigrations, props: WiredAnnotationPinProps },
     'wired-progress': { migrations: WiredProgressMigrations, props: WiredProgressProps },

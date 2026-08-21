@@ -102,6 +102,34 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 		}
 	})
 
+	
+	// [Agentic Injection API] Safe REST Endpoint for Agent/MCP
+	app.post('/api/rooms/:roomId/inject', async (req, res) => {
+		const roomId = (req.params as any).roomId as string
+		const room = makeOrLoadRoom(roomId)
+		
+		try {
+			const chunks: Buffer[] = []
+			for await (const chunk of req.raw) {
+				chunks.push(chunk)
+			}
+			const body = Buffer.concat(chunks).toString('utf-8')
+			const records = JSON.parse(body) // Should be an array of shapes/records
+			
+			// We inject records by performing a transaction on the storage
+			room.storage.transaction((transaction) => {
+				for (const record of records) {
+					// Add timestamps/clock info if missing
+					transaction.put(record)
+				}
+			})
+			res.send({ ok: true, injected: records.length })
+		} catch (e) {
+			console.error("[Inject Error]", e)
+			res.status(400).send({ error: 'Bad Request', details: String(e) })
+		}
+	})
+
 	app.delete('/library/:id', async (req, res) => {
 		const { removeLibraryItem } = await import('./library')
 		const id = (req.params as any).id as string

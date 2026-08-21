@@ -1,6 +1,12 @@
 import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor, defaultShapeUtils } from 'tldraw'
 import 'tldraw/tldraw.css'
+
+import { WiredMeasurementShapeUtil } from './WiredMeasurementShape'
+import { WiredTokenSwatchShapeUtil } from './WiredTokenSwatchShape'
+import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
+import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
+
 import { CustomMainMenu } from "./CustomMainMenu"
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
@@ -32,7 +38,7 @@ import { insertLayoutComponent, insertUXPatternComponent, insertDiagramComponent
 
 
 
-const customShapeUtils = [WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAssetCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredReferenceCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredIaNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUiElementShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCopyNoteShapeUtil as unknown as TLAnyShapeUtilConstructor]
+const customShapeUtils = [WiredMeasurementShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredTokenSwatchShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredStatusBadgeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMcpInboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredProgressShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDataTableShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredToggleShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCheckboxShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBarChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredDonutChartShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredButtonShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredModalShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredContainerShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredInputShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredMobileFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredBrowserFrameShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUserFlowNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAnnotationPinShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredAssetCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredReferenceCardShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredIaNodeShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredUiElementShapeUtil as unknown as TLAnyShapeUtilConstructor, WiredCopyNoteShapeUtil as unknown as TLAnyShapeUtilConstructor]
 
 const allShapeUtils = [...defaultShapeUtils, ...customShapeUtils]
 
@@ -425,9 +431,20 @@ export function AgentReceiver({ roomId }: { roomId: string }) {
 
                 if (data.shapes && Array.isArray(data.shapes)) {
                     if (data.assets && Array.isArray(data.assets)) {
-                        editor.createAssets(data.assets);
+                        try {
+                            editor.createAssets(data.assets);
+                        } catch (err) {
+                            console.error("AgentReceiver error creating assets:", err);
+                        }
                     }
-                    editor.createShapes(data.shapes);
+                    // 하나씩 개별 생성하여 오류 발생 시 전체 크래시를 방지
+                    for (const shape of data.shapes) {
+                        try {
+                            editor.createShape(shape);
+                        } catch (err) {
+                            console.error("AgentReceiver error creating shape:", shape, err);
+                        }
+                    }
                 }
             } catch (e) {
                 console.error("AgentReceiver error parsing event:", e);
@@ -465,7 +482,14 @@ function ResourceHubSidebar() {
                 const res = await fetch(`https://assets.sonagi.space/api/items?search=${encodeURIComponent(query)}&limit=10`)
                 if (res.ok) {
                     const data = await res.json()
-                    setResults(data)
+                    // GET /api/items returns { total, items: [...] }, not a bare array.
+                    // Setting `results` to the whole object here used to crash the
+                    // sidebar with "results.map is not a function" as soon as a search
+                    // actually returned a hit (empty results masked it, since the
+                    // initial state is already []).
+                    setResults(Array.isArray(data) ? data : (data.items || []))
+                } else {
+                    setResults([])
                 }
             } else {
                 // Placeholder for ref.sonagi.space search
@@ -679,6 +703,12 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+                onMount={(editor) => {
+                    // [Agentic Access] Expose the official Tldraw Editor instance on window
+                    // so MCP/agent automation (e.g. Playwright) can safely call editor.createShapes()
+                    // etc. through the validated in-memory store instead of touching SQLite directly.
+                    ;(window as any).editor = editor
+                }}
             />
         </div>
     )
