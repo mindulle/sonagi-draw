@@ -71,6 +71,12 @@ async function main() {
 			case 'get_room_state':
 				result = await getRoomState(page, args)
 				break
+			case 'create_room_content':
+				result = await createRoomContent(page, args)
+				break
+			case 'generate_moodboard_layout':
+				result = await generateMoodboardLayout(page, args)
+				break
 			default:
 				throw new Error(`Unknown action: ${action}`)
 		}
@@ -314,6 +320,165 @@ async function getRoomState(page, { pageId, pageName }) {
 			}
 		},
 		{ pageId, pageName }
+	)
+}
+
+/**
+ * Seeds the 3 default pages (Moodboard/Wireframe & UI Kit/User Journey) of a
+ * freshly created room with their placeholder content. Replaces server.py's
+ * old create_room + generate_wireframe_kit + generate_user_journey, which
+ * built raw tldraw records (hand-rolled "index" values like "c001", "c002", ...
+ * that don't follow tldraw's actual fractional-indexing format) and wrote them
+ * straight into SQLite - the exact class of bug that crashed sync-server.
+ * init_db()'s template-copy (pure file copy) is left alone in server.py; this
+ * only replaces the *dynamic* per-room content that used to go through
+ * add_shape_to_db.
+ */
+async function createRoomContent(page, { title, issueId }) {
+	// richText must be built here in Node scope (page.evaluate() only receives
+	// serialized data, not closures), same reason addStickyNote/addWireframeBox
+	// above build it outside the evaluate() callback.
+	const t = (text) => toRichText(text)
+
+	const moodboardShapes = [
+		{ type: 'text', x: 100, y: 50, props: { color: 'black', size: 'xl', w: 200, textAlign: 'middle', autoSize: true, richText: t(`🎨 ${title}`) } },
+	]
+	if (issueId) {
+		moodboardShapes.push({
+			type: 'text',
+			x: 100,
+			y: 120,
+			props: { color: 'blue', size: 's', w: 200, textAlign: 'middle', autoSize: true, richText: t(`🔗 Associated with Issue: ${issueId}`) },
+		})
+	}
+
+	const wireframeShapes = [
+		{ type: 'geo', x: 100, y: 200, props: { geo: 'rectangle', w: 375, h: 812, color: 'grey', fill: 'none' } },
+		{ type: 'text', x: 100, y: 150, props: { color: 'black', size: 'm', w: 200, textAlign: 'middle', autoSize: true, richText: t('📱 Mobile App') } },
+		{ type: 'geo', x: 600, y: 200, props: { geo: 'rectangle', w: 1280, h: 800, color: 'grey', fill: 'none' } },
+		{ type: 'text', x: 600, y: 150, props: { color: 'black', size: 'm', w: 200, textAlign: 'middle', autoSize: true, richText: t('💻 Web Desktop') } },
+		{ type: 'text', x: 100, y: 1100, props: { color: 'black', size: 'l', w: 200, textAlign: 'middle', autoSize: true, richText: t('📦 UI Kit (Drag & Drop)') } },
+		{ type: 'geo', x: 100, y: 1160, props: { geo: 'rectangle', w: 150, h: 48, color: 'blue', fill: 'semi' } },
+		{ type: 'text', x: 125, y: 1172, props: { color: 'white', size: 's', w: 200, textAlign: 'middle', autoSize: true, richText: t('Primary Btn') } },
+		{ type: 'geo', x: 300, y: 1160, props: { geo: 'rectangle', w: 200, h: 48, color: 'grey', fill: 'none' } },
+		{ type: 'text', x: 320, y: 1172, props: { color: 'grey', size: 's', w: 200, textAlign: 'middle', autoSize: true, richText: t('Input text...') } },
+	]
+
+	const journeyShapes = [
+		{ type: 'text', x: 100, y: 100, props: { color: 'black', size: 'xl', w: 200, textAlign: 'middle', autoSize: true, richText: t('🗺️ User Journey Flowchart') } },
+		{ type: 'note', x: 100, y: 200, props: { color: 'blue', richText: t('1. 사용자가 랜딩 페이지 접속\n(스크롤 유도)') } },
+		{ type: 'note', x: 400, y: 200, props: { color: 'yellow', richText: t('2. CTA 버튼 클릭\n(가입 모달 노출)') } },
+		{ type: 'note', x: 700, y: 200, props: { color: 'green', richText: t('3. 결제 및 온보딩 완료\n(대시보드 이동)') } },
+	]
+
+	return page.evaluate(
+		({ moodboardShapes, wireframeShapes, journeyShapes }) => {
+			const editor = window.editor
+			const results = {}
+
+			// Verified live (CEO-933): the Python-side local SQLite mirror that
+			// init_db() pre-seeds with 3 pages is NOT read by the actual production
+			// sync-server (no Syncthing/volume link between them - see get_room_state's
+			// comment above), so a brand-new room always starts with tldraw's single
+			// default page, whose id is always the fixed 'page:page'. Reuse + rename
+			// that page as the Moodboard tab instead of assuming it was pre-seeded,
+			// and explicitly create the other two tabs via the real Editor API.
+			const moodboardPage = editor.getPages().find((p) => p.id === 'page:page')
+			if (moodboardPage) {
+				if (moodboardPage.name !== '🎨 Moodboard') {
+					editor.renamePage(moodboardPage.id, '🎨 Moodboard')
+				}
+				editor.setCurrentPage(moodboardPage.id)
+				editor.createShapes(moodboardShapes)
+				results.moodboardPageId = moodboardPage.id
+			}
+
+			const ensurePage = (id, name) => {
+				let found = editor.getPages().find((p) => p.id === id || p.name === name)
+				if (!found) {
+					editor.createPage({ id, name })
+					found = editor.getPages().find((p) => p.id === id || p.name === name)
+				}
+				return found
+			}
+
+			const wireframePage = ensurePage('page:wireframe', '📐 Wireframe & UI Kit')
+			if (wireframePage) {
+				editor.setCurrentPage(wireframePage.id)
+				editor.createShapes(wireframeShapes)
+				results.wireframePageId = wireframePage.id
+			}
+
+			const journeyPage = ensurePage('page:journey', '🗺️ User Journey')
+			if (journeyPage) {
+				editor.setCurrentPage(journeyPage.id)
+				editor.createShapes(journeyShapes)
+				results.journeyPageId = journeyPage.id
+			}
+
+			return results
+		},
+		{ moodboardShapes, wireframeShapes, journeyShapes }
+	)
+}
+
+/**
+ * Replaces server.py's old generate_moodboard_layout, which wrote design-rule
+ * text, palette swatches, and image assets/shapes straight into SQLite via
+ * add_shape_to_db. CDN upload of the source images still happens in Python
+ * (unrelated to the crash-causing SQL path); this only takes already-uploaded
+ * CDN URLs + pre-computed grid positions and creates the actual tldraw
+ * asset/shape records through the real, validated Editor API.
+ */
+async function generateMoodboardLayout(page, { pageId, pageName, rules, paletteHex = [], images = [] }) {
+	// richText must be built here in Node scope, same reason as createRoomContent above.
+	const textShapes = [
+		{ type: 'text', x: 800, y: 200, props: { color: 'black', size: 'l', w: 200, textAlign: 'middle', autoSize: true, richText: toRichText('📌 Design Rules') } },
+		{ type: 'text', x: 800, y: 260, props: { color: 'black', size: 'm', w: 200, textAlign: 'middle', autoSize: true, richText: toRichText(rules) } },
+		{ type: 'text', x: 800, y: 500, props: { color: 'black', size: 'l', w: 200, textAlign: 'middle', autoSize: true, richText: toRichText('🎨 Color Palette (Reference)') } },
+	]
+	paletteHex.forEach((hex, i) => {
+		textShapes.push({
+			type: 'text',
+			x: 800 + i * 120,
+			y: 540,
+			props: { color: 'black', size: 's', w: 200, textAlign: 'middle', autoSize: true, richText: toRichText(hex) },
+		})
+	})
+
+	return page.evaluate(
+		({ pageId, pageName, textShapes, images }) => {
+			const editor = window.editor
+			const identifier = pageId || pageName
+			const targetPage = identifier
+				? editor.getPages().find((p) => p.id === identifier || p.name === identifier)
+				: editor.getCurrentPage()
+			if (!targetPage) throw new Error(`Page not found: ${identifier}`)
+			editor.setCurrentPage(targetPage.id)
+
+			editor.createShapes(textShapes)
+
+			// Images: create the asset records first, then shapes that reference them.
+			const assetRecords = images.map((img) => ({
+				id: img.assetId,
+				type: 'image',
+				typeName: 'asset',
+				props: { name: 'image.png', src: img.cdnUrl, w: img.w, h: img.h, isAnimated: false, mimeType: 'image/jpeg' },
+				meta: {},
+			}))
+			if (assetRecords.length > 0) editor.createAssets(assetRecords)
+
+			const imageShapes = images.map((img) => ({
+				type: 'image',
+				x: img.x,
+				y: img.y,
+				props: { w: img.w, h: img.h, assetId: img.assetId },
+			}))
+			if (imageShapes.length > 0) editor.createShapes(imageShapes)
+
+			return { pageId: targetPage.id, textCount: textShapes.length, imageCount: imageShapes.length }
+		},
+		{ pageId, pageName, textShapes, images }
 	)
 }
 
