@@ -1,5 +1,6 @@
 import { WiredInputProps, WiredInputMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredInputShape = TLBaseShape<
     'wired-input',
@@ -76,7 +77,7 @@ export class WiredInputShapeUtil extends ShapeUtil<WiredInputShape> {
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'normal',
                             fontSize: '15px',
-                            color: '#6b7280', // placeholder gray
+                            color: tokens["--semantic-light-color-text-muted"] || '#6b7280', // placeholder gray
                             pointerEvents: 'none'
                         }}>
                             {placeholder}

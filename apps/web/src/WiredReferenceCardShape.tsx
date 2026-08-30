@@ -1,5 +1,6 @@
 import { WiredReferenceCardProps, WiredReferenceCardMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredReferenceCardShape = TLBaseShape<
     'wired-reference-card',
@@ -53,7 +54,7 @@ export class WiredReferenceCardShapeUtil extends ShapeUtil<WiredReferenceCardSha
                         width: w,
                         height: h,
                         pointerEvents: 'all',
-                        background: '#ffffff',
+                        background: tokens["--semantic-light-color-bg-elevated"] || '#ffffff',
                         fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif'
                     }}
                 >
@@ -79,7 +80,7 @@ export class WiredReferenceCardShapeUtil extends ShapeUtil<WiredReferenceCardSha
                         <div style={{
                             position: 'absolute',
                             top: 8, left: 8, width: w - 16, height: imgH - 12,
-                            background: '#e5e7eb',
+                            background: tokens["--semantic-light-color-border-default"] || '#e5e7eb',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             overflow: 'hidden',
                             borderRadius: '4px'
@@ -87,7 +88,7 @@ export class WiredReferenceCardShapeUtil extends ShapeUtil<WiredReferenceCardSha
                             {imageUrl ? (
                                 <img src={imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
                             ) : (
-                                <span style={{ color: '#9ca3af', fontSize: '14px' }}>No Image</span>
+                                <span style={{ color: tokens["--semantic-light-color-text-muted"] || '#9ca3af', fontSize: '14px' }}>No Image</span>
                             )}
                         </div>
                         
@@ -97,7 +98,7 @@ export class WiredReferenceCardShapeUtil extends ShapeUtil<WiredReferenceCardSha
                             top: imgH + 8, left: 12, width: w - 24,
                             display: 'flex', flexDirection: 'column', gap: '4px'
                         }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '16px', color: tokens["--semantic-light-color-text-primary"] || '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                                 {title}
                             </div>
                             {url && (
@@ -107,7 +108,7 @@ export class WiredReferenceCardShapeUtil extends ShapeUtil<WiredReferenceCardSha
                                     rel="noopener noreferrer"
                                     onPointerDown={(e) => e.stopPropagation()}
                                     style={{ 
-                                        fontSize: '12px', color: '#3b82f6', textDecoration: 'none', 
+                                        fontSize: '12px', color: tokens["--semantic-light-color-accent-default"] || '#3b82f6', textDecoration: 'none', 
                                         textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap',
                                         pointerEvents: 'all'
                                     }}

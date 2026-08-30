@@ -1,5 +1,6 @@
 import { WiredUserFlowNodeProps, WiredUserFlowNodeMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredUserFlowNodeShape = TLBaseShape<
     'wired-user-flow-node',
@@ -22,7 +23,7 @@ export class WiredUserFlowNodeShapeUtil extends ShapeUtil<WiredUserFlowNodeShape
             w: 160,
             h: 80,
             title: 'Node Step',
-            color: '#f97316'
+            color: tokens["--semantic-light-color-state-warning"] || '#f97316'
         }
     }
 
@@ -85,7 +86,7 @@ export class WiredUserFlowNodeShapeUtil extends ShapeUtil<WiredUserFlowNodeShape
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: '14px',
-                            color: '#111',
+                            color: tokens["--semantic-light-color-text-primary"] || '#111',
                             pointerEvents: 'none',
                             textAlign: 'center'
                         }}>

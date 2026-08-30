@@ -1,5 +1,6 @@
 import { WiredCardProps, WiredCardMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredCardShape = TLBaseShape<
     'wired-card',
@@ -50,7 +51,7 @@ export class WiredCardShapeUtil extends ShapeUtil<WiredCardShape> {
                         width: w,
                         height: h,
                         pointerEvents: 'all',
-                        background: '#ffffff'
+                        background: tokens["--semantic-light-color-bg-elevated"] || '#ffffff'
                     }}
                 >
                     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -95,7 +96,7 @@ export class WiredCardShapeUtil extends ShapeUtil<WiredCardShape> {
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: '18px',
-                            color: '#111',
+                            color: tokens["--semantic-light-color-text-primary"] || '#111',
                             pointerEvents: 'none'
                         }}>
                             {title}

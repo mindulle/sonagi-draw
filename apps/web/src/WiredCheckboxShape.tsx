@@ -1,5 +1,6 @@
 import { WiredCheckboxProps, WiredCheckboxMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredCheckboxShape = TLBaseShape<
     'wired-checkbox',
@@ -74,7 +75,7 @@ export class WiredCheckboxShapeUtil extends ShapeUtil<WiredCheckboxShape> {
                         {/* Rough Box */}
                         <path 
                             d={`M 2 2 L ${boxSize-2} 3 L ${boxSize-3} ${boxSize-2} L 3 ${boxSize-3} Z`} 
-                            fill={isChecked ? '#3b82f6' : '#fff'} 
+                            fill={isChecked ? tokens["--semantic-light-color-accent-default"] || '#3b82f6' : tokens["--semantic-light-color-bg-elevated"] || '#fff'} 
                             stroke="#111" 
                             strokeWidth={2}
                             style={{ transition: 'fill 0.1s' }}
@@ -127,7 +128,7 @@ export class WiredCheckboxShapeUtil extends ShapeUtil<WiredCheckboxShape> {
                             outline: 'none',
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontSize: '15px',
-                            color: '#111',
+                            color: tokens["--semantic-light-color-text-primary"] || '#111',
                             width: `calc(100% - ${textOffset}px)`
                         }}
                     />

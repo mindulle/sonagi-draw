@@ -1,5 +1,6 @@
 import { WiredButtonProps, WiredButtonMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredButtonShape = TLBaseShape<
     'wired-button',
@@ -22,7 +23,7 @@ export class WiredButtonShapeUtil extends ShapeUtil<WiredButtonShape> {
             w: 120,
             h: 48,
             text: 'Button',
-            color: '#3b82f6'
+            color: tokens["--primitive-accent-rain"] || tokens["--semantic-light-color-accent-default"] || '#3b82f6'
         }
     }
 
@@ -84,7 +85,7 @@ export class WiredButtonShapeUtil extends ShapeUtil<WiredButtonShape> {
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: `${Math.min(h * 0.4, w * 0.2)}px`,
-                            color: '#fff',
+                            color: tokens["--semantic-light-color-bg-elevated"] || '#fff',
                             textShadow: '1px 1px 0px rgba(0,0,0,0.5)',
                             pointerEvents: 'none',
                             textAlign: 'center',

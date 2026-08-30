@@ -1,5 +1,6 @@
 import { WiredProgressProps, WiredProgressMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredProgressShape = TLBaseShape<
     'wired-progress',
@@ -22,7 +23,7 @@ export class WiredProgressShapeUtil extends ShapeUtil<WiredProgressShape> {
             w: 200,
             h: 40,
             progress: 50,
-            color: '#3b82f6'
+            color: tokens["--semantic-light-color-accent-default"] || '#3b82f6'
         }
     }
 
@@ -89,7 +90,7 @@ export class WiredProgressShapeUtil extends ShapeUtil<WiredProgressShape> {
                         fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                         fontWeight: 'bold',
                         fontSize: '16px',
-                        color: progress > 50 ? '#fff' : '#000',
+                        color: progress > 50 ? tokens["--semantic-light-color-bg-elevated"] || '#fff' : tokens["--semantic-light-color-text-primary"] || '#000',
                         textShadow: progress > 50 ? '1px 1px 0px rgba(0,0,0,0.5)' : 'none',
                         pointerEvents: 'none'
                     }}>
