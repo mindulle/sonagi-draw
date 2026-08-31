@@ -1,5 +1,6 @@
 import { WiredTokenSwatchProps, WiredTokenSwatchMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredTokenSwatchShape = TLBaseShape<'wired-token-swatch', { w: number, h: number, colorHex: string, tokenName: string, role: string }>
 
@@ -22,12 +23,12 @@ export class WiredTokenSwatchShapeUtil extends ShapeUtil<WiredTokenSwatchShape> 
         
         return (
             <HTMLContainer id={shape.id} style={{ width: w, height: h, pointerEvents: 'all' }}>
-                <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ width: '100%', height: '100%', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ background: colorHex, flex: 1, width: '100%' }} />
                     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827' }}>{colorHex}</div>
-                        <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#6b7280' }}>{tokenName}</div>
-                        <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>{role}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: tokens["--semantic-light-color-text-primary"] || '#111827' }}>{colorHex}</div>
+                        <div style={{ fontSize: '11px', fontFamily: 'monospace', color: tokens["--semantic-light-color-text-muted"] || '#6b7280' }}>{tokenName}</div>
+                        <div style={{ fontSize: '11px', color: tokens["--semantic-light-color-text-muted"] || '#9ca3af', marginTop: '4px' }}>{role}</div>
                     </div>
                 </div>
             </HTMLContainer>

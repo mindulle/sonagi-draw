@@ -1,5 +1,6 @@
 import { WiredUiElementProps, WiredUiElementMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredUiElementShape = TLBaseShape<'wired-ui-element', { w: number, h: number, title: string, pattern: string, imageUrl: string }>
 
@@ -25,17 +26,17 @@ export class WiredUiElementShapeUtil extends ShapeUtil<WiredUiElementShape> {
         const { w, h, title, pattern, imageUrl } = shape.props
         return (
             <HTMLContainer id={shape.id} style={{ width: w, height: h, pointerEvents: 'all' }}>
-                <div style={{ width: '100%', height: '100%', position: 'relative', background: '#fff', borderRadius: '8px', border: '2px dashed #10b981', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div style={{ background: '#10b981', color: '#fff', padding: '4px 8px', fontSize: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ width: '100%', height: '100%', position: 'relative', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', borderRadius: '8px', border: '2px dashed #10b981', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ background: tokens["--semantic-light-color-state-success"] || '#10b981', color: tokens["--semantic-light-color-bg-elevated"] || '#fff', padding: '4px 8px', fontSize: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
                         <span>🧩 {pattern}</span>
                         <span style={{opacity: 0.8}}>{title}</span>
                     </div>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', overflow: 'hidden', padding: '8px' }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: tokens["--semantic-light-color-bg-base"] || '#f9fafb', overflow: 'hidden', padding: '8px' }}>
                         {imageUrl ? (
                             <a href={imageUrl} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' }}>
                                 <img src={imageUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} />
                             </a>
-                        ) : <span style={{ color: '#ccc' }}>No Image</span>}
+                        ) : <span style={{ color: tokens["--semantic-light-color-text-disabled"] || '#ccc' }}>No Image</span>}
                     </div>
                 </div>
             </HTMLContainer>

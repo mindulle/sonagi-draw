@@ -1,5 +1,6 @@
 import { WiredAssetCardProps, WiredAssetCardMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredAssetCardShape = TLBaseShape<
     'wired-asset-card',
@@ -55,7 +56,7 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
                         width: w,
                         height: h,
                         pointerEvents: 'all',
-                        background: '#ffffff',
+                        background: tokens["--semantic-light-color-bg-elevated"] || '#ffffff',
                         fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif'
                     }}
                 >
@@ -74,7 +75,7 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
                         <div style={{
                             position: 'absolute',
                             top: 8, left: 8, width: w - 16, height: imgH - 16,
-                            background: '#f9fafb',
+                            background: tokens["--semantic-light-color-bg-base"] || '#f9fafb',
                             border: '1.5px solid #111',
                             borderRadius: '8px',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -85,7 +86,7 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
                                     <img src={imageUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} title="새 탭에서 원본 보기" />
                                 </a>
                             ) : (
-                                <span style={{ color: '#ccc', fontSize: '14px' }}>No Image</span>
+                                <span style={{ color: tokens["--semantic-light-color-text-disabled"] || '#ccc', fontSize: '14px' }}>No Image</span>
                             )}
                         </div>
                         
@@ -95,15 +96,15 @@ export class WiredAssetCardShapeUtil extends ShapeUtil<WiredAssetCardShape> {
                             top: imgH, left: 12, width: w - 24,
                             display: 'flex', flexDirection: 'column', gap: '4px'
                         }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '16px', color: tokens["--semantic-light-color-text-primary"] || '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                                 {title}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                            <div style={{ fontSize: '12px', color: tokens["--semantic-light-color-text-muted"] || '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                                 <div style={{ display: 'flex', gap: '4px' }}>
-                                    <span style={{ background: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{ext}</span>
+                                    <span style={{ background: tokens["--semantic-light-color-border-default"] || '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{ext}</span>
                                 </div>
                                 {imageUrl && (
-                                    <a href={imageUrl} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 'bold', pointerEvents: 'all' }}>
+                                    <a href={imageUrl} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} style={{ color: tokens["--semantic-light-color-accent-default"] || '#3b82f6', textDecoration: 'none', fontWeight: 'bold', pointerEvents: 'all' }}>
                                         원본 열기 ↗
                                     </a>
                                 )}

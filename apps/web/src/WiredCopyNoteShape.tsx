@@ -1,5 +1,6 @@
 import { WiredCopyNoteProps, WiredCopyNoteMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredCopyNoteShape = TLBaseShape<'wired-copy-note', { w: number, h: number, text: string, noteType: string }>
 
@@ -29,7 +30,7 @@ export class WiredCopyNoteShapeUtil extends ShapeUtil<WiredCopyNoteShape> {
                     <div style={{ fontSize: '10px', color: '#ca8a04', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>
                         ✍️ {noteType}
                     </div>
-                    <div style={{ fontSize: '15px', color: '#111', lineHeight: '1.5', fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif', flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontSize: '15px', color: tokens["--semantic-light-color-text-primary"] || '#111', lineHeight: '1.5', fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif', flex: 1, overflow: 'hidden' }}>
                         "{text}"
                     </div>
                 </div>

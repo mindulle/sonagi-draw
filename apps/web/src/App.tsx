@@ -1,6 +1,9 @@
 import { useSync } from '@tldraw/sync'
 import { Tldraw, TLAssetStore, uniqueId, useEditor, TLContent, createShapeId, TLAnyShapeUtilConstructor, defaultShapeUtils } from 'tldraw'
 import 'tldraw/tldraw.css'
+import '@sonagi/tokens/css'
+
+import { Button, SonagiLogo } from '@mindulle/ui'
 
 import { WiredMeasurementShapeUtil } from './WiredMeasurementShape'
 import { WiredTokenSwatchShapeUtil } from './WiredTokenSwatchShape'
@@ -63,18 +66,17 @@ function useIsMobile() {
 function ShareButton() {
     const [copied, setCopied] = useState(false)
     return (
-        <button
+        <Button
+            variant="secondary"
             onClick={() => {
                 navigator.clipboard.writeText(window.location.href)
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
             }}
-            style={{ background: '#ffffff', color: '#1d1d1d', border: '1px solid #e5e7eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', pointerEvents: 'all', fontSize: '13px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}
-            onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'}
-            onMouseOut={e => e.currentTarget.style.background = '#ffffff'}
+            style={{ pointerEvents: 'all' }}
         >
-            {copied ? '복사됨' : '링크 복사'}
-        </button>
+            {copied ? '복사됨!' : '링크 공유'}
+        </Button>
     )
 }
 
@@ -632,14 +634,19 @@ function ResourceHubSidebar() {
 function InFrontWrapper({ roomId }: { roomId: string }) {
     const isMobile = useIsMobile()
     return (
-        <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 'calc(56px + env(safe-area-inset-top, 0px))' : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
-            <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
-                <AgentReceiver roomId={roomId} />
-                <ShareButton />
-                <ResourceHubSidebar />
-                <LibrarySidebar />
+        <>
+            <div style={{ position: 'absolute', top: 16, left: 60, zIndex: 9999, pointerEvents: 'none' }}>
+                <SonagiLogo height={24} variant="full" />
             </div>
-        </div>
+            <div style={{ position: 'absolute', bottom: isMobile ? 'auto' : 16, top: isMobile ? 'calc(56px + env(safe-area-inset-top, 0px))' : 'auto', right: 16, zIndex: 9999, display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: 'column', pointerEvents: 'none' }}>
+                <div style={{ display: 'flex', gap: '8px', pointerEvents: 'none' }}>
+                    <AgentReceiver roomId={roomId} />
+                    <ShareButton />
+                    <ResourceHubSidebar />
+                    <LibrarySidebar />
+                </div>
+            </div>
+        </>
     )
 }
 

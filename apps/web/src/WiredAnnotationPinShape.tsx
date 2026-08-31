@@ -1,5 +1,6 @@
 import { WiredAnnotationPinProps, WiredAnnotationPinMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Circle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredAnnotationPinShape = TLBaseShape<
     'wired-annotation-pin',
@@ -20,7 +21,7 @@ export class WiredAnnotationPinShapeUtil extends ShapeUtil<WiredAnnotationPinSha
         return {
             r: 20,
             label: '1',
-            color: '#ef4444'
+            color: tokens["--semantic-light-color-state-error"] || '#ef4444'
         }
     }
 
@@ -73,7 +74,7 @@ export class WiredAnnotationPinShapeUtil extends ShapeUtil<WiredAnnotationPinSha
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: `${r}px`,
-                            color: '#fff',
+                            color: tokens["--semantic-light-color-bg-elevated"] || '#fff',
                             pointerEvents: 'none'
                         }}>
                             {label}
