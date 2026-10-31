@@ -1,7 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
+const fs = require('fs');
+const path = require('path');
 
-function patchFile(filePath: string, search: string | RegExp, replacement: string) {
+function patchFile(filePath, search, replacement) {
   if (!fs.existsSync(filePath)) return;
   let content = fs.readFileSync(filePath, 'utf8');
   if (typeof search === 'string' ? content.includes(search) : search.test(content)) {
@@ -11,15 +11,27 @@ function patchFile(filePath: string, search: string | RegExp, replacement: strin
   }
 }
 
-// Target all @tldraw/editor installations
-const globPatterns = [
-  '/home/ubuntu/sonagi-draw/node_modules/.pnpm/@tldraw+editor@5.6.0_@floating-ui+dom@1.8.0_@types+react-dom@18.3.7_@types+react@18.3.3_5a4a4a7a40ccda56b615d16435dece70/node_modules/@tldraw/editor',
-  '/home/ubuntu/sonagi-draw/node_modules/.pnpm/@tldraw+editor@5.3.0_@floating-ui+dom@1.8.0_@types+react-dom@18.3.7_@types+react@18.3.3_0abf22e4c8e636413c36b278610e1497/node_modules/@tldraw/editor'
-];
+// Dynamically locate all @tldraw/editor installations in node_modules/.pnpm
+const rootDir = path.resolve(__dirname, '..');
+const pnpmDir = path.join(rootDir, 'node_modules/.pnpm');
+const targetDirs = [];
 
-for (const dir of globPatterns) {
-  if (!fs.existsSync(dir)) continue;
+if (fs.existsSync(pnpmDir)) {
+  for (const name of fs.readdirSync(pnpmDir)) {
+    if (name.startsWith('@tldraw+editor@')) {
+      const target = path.join(pnpmDir, name, 'node_modules/@tldraw/editor');
+      if (fs.existsSync(target)) targetDirs.push(target);
+    }
+  }
+}
 
+// Fallback for direct node_modules/@tldraw/editor if present
+const directEditor = path.join(rootDir, 'node_modules/@tldraw/editor');
+if (fs.existsSync(directEditor) && !targetDirs.includes(directEditor)) {
+  targetDirs.push(directEditor);
+}
+
+for (const dir of targetDirs) {
   const mjsManager = path.join(dir, 'dist-esm/lib/license/LicenseManager.mjs');
   const jsManager = path.join(dir, 'dist-cjs/lib/license/LicenseManager.js');
   const mjsProvider = path.join(dir, 'dist-esm/lib/license/LicenseProvider.mjs');
