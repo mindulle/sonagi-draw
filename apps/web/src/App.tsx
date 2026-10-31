@@ -8,7 +8,7 @@ import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
 import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
@@ -698,12 +698,42 @@ function App() {
 
 function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const [fileList, setFileList] = useState<string[]>([])
-    const [currentFile, setCurrentFile] = useState<string>(initialFile || '')
-    const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
-    const [editor, setEditor] = useState<any>(null)
-    const isLoadingRef = useRef<boolean>(false)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [activeFileName, setActiveFileName] = useState<string>(initialFile || '')
 
-    // 1. Fetch file list from /api/drawings
+    const currentFileRef = useRef<string>(initialFile || '')
+    const editorRef = useRef<any>(null)
+    const isLoadingRef = useRef<boolean>(false)
+    const autoSaveTimerRef = useRef<any>(null)
+
+    const loadFile = useCallback((fileName: string) => {
+        if (!fileName || !editorRef.current) return
+        currentFileRef.current = fileName
+        setActiveFileName(fileName)
+        isLoadingRef.current = true
+
+        fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`)
+            .then(res => {
+                if (!res.ok) throw new Error('File not found')
+                return res.json()
+            })
+            .then(snapshot => {
+                editorRef.current.loadSnapshot(snapshot)
+                setTimeout(() => {
+                    isLoadingRef.current = false
+                    try {
+                        editorRef.current.zoomToFit({ animation: { duration: 250 } })
+                    } catch (_) {}
+                }, 300)
+            })
+            .catch(err => {
+                console.error('Failed to load drawing snapshot:', err)
+                isLoadingRef.current = false
+            })
+    }, [])
+
+    // 1. Fetch file list from /api/drawings once
     useEffect(() => {
         fetch('/api/drawings')
             .then(res => res.json())
@@ -711,69 +741,19 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 if (data.files && data.files.length > 0) {
                     const names = data.files.map((f: any) => f.name)
                     setFileList(names)
-                    if (!currentFile) {
-                        setCurrentFile(names[0])
+                    if (!currentFileRef.current && names.length > 0) {
+                        currentFileRef.current = names[0]
+                        setActiveFileName(names[0])
+                        if (editorRef.current) {
+                            loadFile(names[0])
+                        }
                     }
                 }
             })
             .catch(console.error)
-    }, [])
+    }, [loadFile])
 
-    // 2. Load snapshot when currentFile changes
-    useEffect(() => {
-        if (!editor || !currentFile) return
-        isLoadingRef.current = true
-        fetch(`/api/drawings?file=${encodeURIComponent(currentFile)}`)
-            .then(res => {
-                if (!res.ok) throw new Error('File not found')
-                return res.json()
-            })
-            .then(snapshot => {
-                editor.loadSnapshot(snapshot)
-                setTimeout(() => {
-                    isLoadingRef.current = false
-                    try {
-                        editor.zoomToFit({ animation: { duration: 250 } })
-                    } catch (_) {}
-                }, 200)
-            })
-            .catch(err => {
-                console.error('Failed to load drawing snapshot:', err)
-                isLoadingRef.current = false
-            })
-    }, [editor, currentFile])
-
-    // 3. Auto-save debounced listener
-    useEffect(() => {
-        if (!editor || !currentFile) return
-        let timer: any = null
-        const cleanup = editor.store.listen((entry: any) => {
-            if (isLoadingRef.current) return
-            if (entry && entry.source === 'remote') return
-
-            setSaveStatus('saving')
-            clearTimeout(timer)
-            timer = setTimeout(() => {
-                if (isLoadingRef.current) return
-                const snapshot = editor.getSnapshot()
-                fetch('/api/drawings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file: currentFile, data: snapshot })
-                })
-                    .then(res => res.json())
-                    .then(() => setSaveStatus('saved'))
-                    .catch(() => setSaveStatus('error'))
-            }, 1500)
-        })
-
-        return () => {
-            cleanup()
-            clearTimeout(timer)
-        }
-    }, [editor, currentFile])
-
-    const handleNewCanvas = async () => {
+    const handleNewCanvas = useCallback(async () => {
         const todayStr = new Date().toISOString().slice(0, 10)
         const rawName = window.prompt('새 캔버스 이름을 입력하세요:', `Drawing_${todayStr}`)
         if (!rawName) return
@@ -786,16 +766,14 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             const data = await res.json()
             if (data.name) {
                 setFileList(prev => [data.name, ...prev])
-                setCurrentFile(data.name)
+                loadFile(data.name)
             }
         } catch (e) {
             alert('새 캔버스 생성 실패: ' + e)
         }
-    }
+    }, [loadFile])
 
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState('')
-
+    // Register window actions for CustomMainMenu
     useEffect(() => {
         ;(window as any).__OPEN_DRAWING_MODAL__ = () => setIsModalOpen(true)
         ;(window as any).__NEW_DRAWING_PROMPT__ = handleNewCanvas
@@ -804,6 +782,37 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             delete (window as any).__NEW_DRAWING_PROMPT__
         }
     }, [handleNewCanvas])
+
+    // Memoize components and assetUrls so <Tldraw> NEVER re-mounts
+    const components = useMemo(() => ({
+        MainMenu: CustomMainMenu,
+        SharePanel: () => null
+    }), [])
+
+    const handleMount = useCallback((ed: any) => {
+        editorRef.current = ed
+        ;(window as any).editor = ed
+
+        if (currentFileRef.current) {
+            loadFile(currentFileRef.current)
+        }
+
+        ed.store.listen((entry: any) => {
+            if (isLoadingRef.current) return
+            if (entry && entry.source === 'remote') return
+
+            clearTimeout(autoSaveTimerRef.current)
+            autoSaveTimerRef.current = setTimeout(() => {
+                if (isLoadingRef.current || !currentFileRef.current) return
+                const snapshot = ed.getSnapshot()
+                fetch('/api/drawings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file: currentFileRef.current, data: snapshot })
+                }).catch(console.error)
+            }, 2000)
+        })
+    }, [loadFile])
 
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -845,14 +854,9 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                             alignItems: 'center',
                             justifyContent: 'space-between'
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111' }}>
-                                    📄 도면 열기 (llm-wiki)
-                                </h3>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: saveStatus === 'saving' ? '#f59e0b' : saveStatus === 'error' ? '#e03131' : '#2f9e44' }}>
-                                    {saveStatus === 'saving' ? '💾 저장 중...' : saveStatus === 'error' ? '❌' : '🟢'}
-                                </span>
-                            </div>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111' }}>
+                                📄 도면 열기 (llm-wiki)
+                            </h3>
                             <button
                                 onClick={() => setIsModalOpen(false)}
                                 style={{
@@ -913,7 +917,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                                     <div
                                         key={name}
                                         onClick={() => {
-                                            setCurrentFile(name)
+                                            loadFile(name)
                                             setIsModalOpen(false)
                                         }}
                                         style={{
@@ -923,9 +927,9 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            background: currentFile === name ? '#e8f5e9' : '#f9f9f9',
-                                            fontWeight: currentFile === name ? 700 : 500,
-                                            color: currentFile === name ? '#2b8a3e' : '#333',
+                                            background: activeFileName === name ? '#e8f5e9' : '#f9f9f9',
+                                            fontWeight: activeFileName === name ? 700 : 500,
+                                            color: activeFileName === name ? '#2b8a3e' : '#333',
                                             marginBottom: 6
                                         }}
                                     >
@@ -933,7 +937,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                                             <span>📄</span>
                                             <span style={{ fontSize: 13 }}>{name}</span>
                                         </div>
-                                        {currentFile === name && <span style={{ fontSize: 12, color: '#2b8a3e' }}>열림 ✓</span>}
+                                        {activeFileName === name && <span style={{ fontSize: 12, color: '#2b8a3e' }}>열림 ✓</span>}
                                     </div>
                                 ))}
                         </div>
@@ -942,14 +946,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             )}
 
             <Tldraw
-                components={{ MainMenu: CustomMainMenu, SharePanel: () => null }}
+                components={components}
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
-                onMount={(ed) => {
-                    ;(window as any).editor = ed
-                    setEditor(ed)
-                }}
+                onMount={handleMount}
             />
         </div>
     )
