@@ -10,7 +10,6 @@ import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 import { CustomMainMenu } from "./CustomMainMenu"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
-import { DiscordSDK } from '@discord/embedded-app-sdk'
 import { getAssetUrls } from '@tldraw/assets/selfHosted'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
@@ -94,6 +93,10 @@ function LibrarySidebar() {
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "내 커스텀 에셋": true, "기본 UI 컴포넌트": true })
 
     const loadLibrary = async () => {
+        if (window.location.origin.includes('discordsays.com') || window.location.pathname.startsWith('/draw')) {
+            setLibraryData(DEFAULT_LIBRARY)
+            return
+        }
         try {
             const res = await fetch(`${WORKER_URL}/library`)
             if (res.ok) {
@@ -103,7 +106,6 @@ function LibrarySidebar() {
                 setLibraryData(DEFAULT_LIBRARY)
             }
         } catch (e) {
-            console.error("Local storage access failed", e)
             setLibraryData(DEFAULT_LIBRARY)
         }
     }
@@ -676,20 +678,6 @@ function App() {
             setIsDiscord(true)
         }
 
-        if (instanceId) {
-            try {
-                const discordSdk = new DiscordSDK("1436611660713300048")
-                discordSdk.ready().then(() => {
-                    console.log("[Sonagi Activity] Discord SDK native ready() succeeded!")
-                    ;(window as any).__DISCORD_SDK__ = discordSdk
-                }).catch(err => {
-                    console.log("[Sonagi Activity] Discord SDK ready() catch:", err)
-                })
-            } catch (err) {
-                console.log("[Sonagi Activity] Discord SDK init catch:", err)
-            }
-        }
-
         if (room !== null) {
             setMode('room')
             setTargetRoom(room || generateRoomId())
@@ -735,13 +723,21 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 return res.json()
             })
             .then(snapshot => {
-                editorRef.current.loadSnapshot(snapshot)
-                setTimeout(() => {
-                    isLoadingRef.current = false
-                    try {
-                        editorRef.current.zoomToFit({ animation: { duration: 250 } })
-                    } catch (_) {}
-                }, 300)
+                // Load document store (excluding stale session camera state if present)
+                const docSnapshot = snapshot.document ? { store: snapshot.document.store, schema: snapshot.document.schema } : snapshot
+                editorRef.current.loadSnapshot(docSnapshot)
+
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        isLoadingRef.current = false
+                        try {
+                            const bounds = editorRef.current.getViewportScreenBounds()
+                            if (bounds && bounds.width > 50 && bounds.height > 50) {
+                                editorRef.current.zoomToFit({ animation: { duration: 250 } })
+                            }
+                        } catch (_) {}
+                    }, 300)
+                })
             })
             .catch(err => {
                 console.error('Failed to load drawing snapshot:', err)
@@ -808,6 +804,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const handleMount = useCallback((ed: any) => {
         editorRef.current = ed
         ;(window as any).editor = ed
+
+        // Ensure canvas stays in light colorScheme even under Discord dark mode
+        try {
+            ed.user.updateUserPreferences({ colorScheme: 'light' })
+        } catch (_) {}
 
         if (currentFileRef.current) {
             loadFile(currentFileRef.current)
@@ -962,6 +963,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             )}
 
             <Tldraw
+                colorScheme="light"
                 components={components}
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
@@ -996,7 +998,10 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw store={storeSync as any} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
+            <Tldraw
+                colorScheme="light"
+                store={storeSync as any}
+                components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
@@ -1005,6 +1010,9 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                     // so MCP/agent automation (e.g. Playwright) can safely call editor.createShapes()
                     // etc. through the validated in-memory store instead of touching SQLite directly.
                     ;(window as any).editor = editor
+                    try {
+                        editor.user.updateUserPreferences({ colorScheme: 'light' })
+                    } catch (_) {}
                 }}
             />
         </div>

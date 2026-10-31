@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "docker-compose up -d && pnpm -r dev",
     "build": "pnpm -r build",
-    "clean": "pnpm -r clean"
+    "clean": "pnpm -r clean",
+    "postinstall": "bun run scripts/patch-tldraw.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
