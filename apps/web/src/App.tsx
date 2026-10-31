@@ -8,7 +8,7 @@ import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
 import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
@@ -782,74 +782,156 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
         }
     }
 
-    const CustomPageMenu = useCallback(() => (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            height: 38,
-            padding: '0 8px',
-            background: 'var(--color-panel, #ffffff)',
-            borderRadius: 'var(--radius-2, 8px)',
-            boxShadow: 'var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1))',
-            border: '1px solid var(--color-muted-1, #e6e6e6)',
-            fontSize: 13
-        }}>
-            <span style={{ fontSize: 13, opacity: 0.8 }}>📄</span>
-            <select
-                value={currentFile}
-                onChange={(e) => setCurrentFile(e.target.value)}
-                style={{
-                    border: 'none',
-                    outline: 'none',
-                    background: 'transparent',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    maxWidth: 160,
-                    cursor: 'pointer',
-                    color: 'var(--color-text, #333)',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden'
-                }}
-            >
-                {fileList.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                ))}
-            </select>
-            <button
-                onClick={handleNewCanvas}
-                title="새 캔버스 만들기"
-                style={{
-                    background: '#2f9e44',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 4,
-                    width: 22,
-                    height: 22,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    fontWeight: 700
-                }}
-            >
-                ➕
-            </button>
-            <span
-                title={saveStatus === 'saving' ? '저장 중...' : saveStatus === 'error' ? '저장 실패' : '자동 저장됨'}
-                style={{ fontSize: 11, cursor: 'default' }}
-            >
-                {saveStatus === 'saving' ? '💾' : saveStatus === 'error' ? '❌' : '🟢'}
-            </span>
-        </div>
-    ), [currentFile, fileList, saveStatus])
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [searchTerm, setSearchTerm] = useState('')
+
+    useEffect(() => {
+        ;(window as any).__OPEN_DRAWING_MODAL__ = () => setIsModalOpen(true)
+        ;(window as any).__NEW_DRAWING_PROMPT__ = handleNewCanvas
+        return () => {
+            delete (window as any).__OPEN_DRAWING_MODAL__
+            delete (window as any).__NEW_DRAWING_PROMPT__
+        }
+    }, [handleNewCanvas])
 
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            {/* Modal Dialog for Opening Drawings */}
+            {isModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 99999,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 16
+                    }}
+                    onClick={() => setIsModalOpen(false)}
+                >
+                    <div
+                        style={{
+                            background: '#ffffff',
+                            borderRadius: 12,
+                            width: '100%',
+                            maxWidth: 480,
+                            maxHeight: '80vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                            overflow: 'hidden'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div style={{
+                            padding: '14px 18px',
+                            borderBottom: '1px solid #eee',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111' }}>
+                                    📄 도면 열기 (llm-wiki)
+                                </h3>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: saveStatus === 'saving' ? '#f59e0b' : saveStatus === 'error' ? '#e03131' : '#2f9e44' }}>
+                                    {saveStatus === 'saving' ? '💾 저장 중...' : saveStatus === 'error' ? '❌' : '🟢'}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    fontSize: 18,
+                                    cursor: 'pointer',
+                                    color: '#888',
+                                    padding: '4px 8px'
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Search & New Button */}
+                        <div style={{ padding: '10px 16px', display: 'flex', gap: 8, borderBottom: '1px solid #f0f0f0' }}>
+                            <input
+                                type="text"
+                                placeholder="도면 검색..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    borderRadius: 6,
+                                    border: '1px solid #ddd',
+                                    fontSize: 14,
+                                    outline: 'none'
+                                }}
+                            />
+                            <button
+                                onClick={() => {
+                                    setIsModalOpen(false)
+                                    handleNewCanvas()
+                                }}
+                                style={{
+                                    background: '#2f9e44',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    padding: '8px 14px',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                ➕ 새 도면
+                            </button>
+                        </div>
+
+                        {/* File List */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+                            {fileList
+                                .filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()))
+                                .map(name => (
+                                    <div
+                                        key={name}
+                                        onClick={() => {
+                                            setCurrentFile(name)
+                                            setIsModalOpen(false)
+                                        }}
+                                        style={{
+                                            padding: '10px 14px',
+                                            borderRadius: 8,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            background: currentFile === name ? '#e8f5e9' : '#f9f9f9',
+                                            fontWeight: currentFile === name ? 700 : 500,
+                                            color: currentFile === name ? '#2b8a3e' : '#333',
+                                            marginBottom: 6
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span>📄</span>
+                                            <span style={{ fontSize: 13 }}>{name}</span>
+                                        </div>
+                                        {currentFile === name && <span style={{ fontSize: 12, color: '#2b8a3e' }}>열림 ✓</span>}
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <Tldraw
-                components={{ MainMenu: CustomMainMenu, PageMenu: CustomPageMenu, SharePanel: () => null }}
+                components={{ MainMenu: CustomMainMenu, SharePanel: () => null }}
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
