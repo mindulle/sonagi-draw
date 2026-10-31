@@ -969,6 +969,50 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 </div>
             )}
 
+            {/* Top HUD File Badge / Selector (Mobile-friendly) */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 10,
+                    left: 56,
+                    zIndex: 350,
+                    pointerEvents: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                }}
+            >
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    style={{
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#212529',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                        cursor: 'pointer',
+                        maxWidth: 'calc(100vw - 120px)',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis'
+                    }}
+                    title="도면 목록 열기"
+                >
+                    <span style={{ fontSize: 14 }}>📄</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {activeFileName || '도면 선택...'}
+                    </span>
+                    <span style={{ fontSize: 10, color: '#888', marginLeft: 2 }}>▾</span>
+                </button>
+            </div>
+
             <Tldraw
                 colorScheme="light"
                 components={components}
