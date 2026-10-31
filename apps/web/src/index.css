@@ -1,7 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap');
 @import url('tldraw/tldraw.css');
 
-body {
-	font-family: 'Inter', sans-serif;
+html, body, #root {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	background-color: #ffffff;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Pretendard, sans-serif;
 	overscroll-behavior: none;
+}
+
+/* Enforce light background variables to prevent Discord dark mode blackout */
+:root {
+	--tl-color-background: #ffffff !important;
+}
+
+.tl-theme__dark {
+	--tl-color-background: #ffffff !important;
+}
+
+.tl-background {
+	background-color: #ffffff !important;
 }

@@ -173,6 +173,31 @@ const toRichText = (text: string) => {
     return (
         <DefaultMainMenu>
             {/* @ts-expect-error React 18 type mismatch */}
+            <TldrawUiMenuGroup id="file-management">
+                <TldrawUiMenuItem
+                    id="open-drawing"
+                    label="📄 도면 열기 (위키)..."
+                    icon="external-link"
+                    readonlyOk={true}
+                    onSelect={() => {
+                        if ((window as any).__OPEN_DRAWING_MODAL__) {
+                            (window as any).__OPEN_DRAWING_MODAL__()
+                        }
+                    }}
+                />
+                <TldrawUiMenuItem
+                    id="new-drawing"
+                    label="➕ 새 도면 만들기..."
+                    icon="plus"
+                    readonlyOk={false}
+                    onSelect={() => {
+                        if ((window as any).__NEW_DRAWING_PROMPT__) {
+                            (window as any).__NEW_DRAWING_PROMPT__()
+                        }
+                    }}
+                />
+            </TldrawUiMenuGroup>
+            {/* @ts-expect-error React 18 type mismatch */}
             <TldrawUiMenuGroup id="custom-templates">
                 <TldrawUiMenuItem
                     id="apply-4tabs"

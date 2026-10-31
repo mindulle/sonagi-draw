@@ -11,7 +11,9 @@ import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
 import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { ErrorBoundary } from './ErrorBoundary'
+import { getAssetUrls } from '@tldraw/assets/selfHosted'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
@@ -93,6 +95,10 @@ function LibrarySidebar() {
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({ "내 커스텀 에셋": true, "기본 UI 컴포넌트": true })
 
     const loadLibrary = async () => {
+        if (window.location.origin.includes('discordsays.com') || window.location.pathname.startsWith('/draw')) {
+            setLibraryData(DEFAULT_LIBRARY)
+            return
+        }
         try {
             const res = await fetch(`${WORKER_URL}/library`)
             if (res.ok) {
@@ -102,7 +108,6 @@ function LibrarySidebar() {
                 setLibraryData(DEFAULT_LIBRARY)
             }
         } catch (e) {
-            console.error("Local storage access failed", e)
             setLibraryData(DEFAULT_LIBRARY)
         }
     }
@@ -665,35 +670,329 @@ const multiplayerAssets: TLAssetStore = {
 }
 
 function App() {
-	const [roomId, setRoomId] = useState<string | null>(null)
+	const [mode, setMode] = useState<'room' | 'file'>('file')
+	const [targetRoom, setTargetRoom] = useState<string | null>(null)
+	const [initialFile, setInitialFile] = useState<string | null>(null)
+	const [isDiscord, setIsDiscord] = useState(false)
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search)
-        let room = urlParams.get('room')
-        if (!room) {
-            room = generateRoomId()
-            const newUrl = new URL(window.location.href)
-            newUrl.searchParams.set('room', room)
-            window.history.replaceState({}, '', newUrl.toString())
+        const room = urlParams.get('room')
+        const file = urlParams.get('file')
+        const instanceId = urlParams.get('instance_id')
+
+        if (instanceId || window.location.pathname.startsWith('/draw')) {
+            setIsDiscord(true)
         }
-        setRoomId(room)
+
+        if (room !== null) {
+            setMode('room')
+            setTargetRoom(room || generateRoomId())
+        } else {
+            setMode('file')
+            setInitialFile(file)
+        }
     }, [])
 
-    if (!roomId) return <div>Loading...</div>
-
 	return (
-        <div style={{ position: 'fixed', inset: 0 }}>
-            <TldrawWrapper roomId={roomId} />
+        <ErrorBoundary>
+            <div style={{ position: 'fixed', top: isDiscord ? 48 : 0, left: 0, right: 0, bottom: 0 }}>
+                {mode === 'room' && targetRoom ? (
+                    <TldrawWrapper roomId={targetRoom} />
+                ) : (
+                    <TldrawFileWrapper initialFile={initialFile || undefined} />
+                )}
+            </div>
+        </ErrorBoundary>
+    )
+}
+
+function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
+    const [fileList, setFileList] = useState<string[]>([])
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [activeFileName, setActiveFileName] = useState<string>(initialFile || '')
+
+    const currentFileRef = useRef<string>(initialFile || '')
+    const editorRef = useRef<any>(null)
+    const isLoadingRef = useRef<boolean>(false)
+    const autoSaveTimerRef = useRef<any>(null)
+
+    const loadFile = useCallback((fileName: string) => {
+        if (!fileName || !editorRef.current) return
+        currentFileRef.current = fileName
+        setActiveFileName(fileName)
+        isLoadingRef.current = true
+
+        fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`)
+            .then(res => {
+                if (!res.ok) throw new Error('File not found')
+                return res.json()
+            })
+            .then(snapshot => {
+                // Load document store (excluding stale session camera state if present)
+                const docSnapshot = snapshot.document ? { store: snapshot.document.store, schema: snapshot.document.schema } : snapshot
+                editorRef.current.loadSnapshot(docSnapshot)
+
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        isLoadingRef.current = false
+                        try {
+                            const bounds = editorRef.current.getViewportScreenBounds()
+                            if (bounds && bounds.width > 50 && bounds.height > 50) {
+                                editorRef.current.zoomToFit({ animation: { duration: 250 } })
+                            }
+                        } catch (_) {}
+                    }, 300)
+                })
+            })
+            .catch(err => {
+                console.error('Failed to load drawing snapshot:', err)
+                isLoadingRef.current = false
+            })
+    }, [])
+
+    // 1. Fetch file list from /api/drawings once
+    useEffect(() => {
+        fetch('/api/drawings')
+            .then(res => res.json())
+            .then(data => {
+                if (data.files && data.files.length > 0) {
+                    const names = data.files.map((f: any) => f.name)
+                    setFileList(names)
+                    if (!currentFileRef.current && names.length > 0) {
+                        currentFileRef.current = names[0]
+                        setActiveFileName(names[0])
+                        if (editorRef.current) {
+                            loadFile(names[0])
+                        }
+                    }
+                }
+            })
+            .catch(console.error)
+    }, [loadFile])
+
+    const handleNewCanvas = useCallback(async () => {
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const rawName = window.prompt('새 캔버스 이름을 입력하세요:', `Drawing_${todayStr}`)
+        if (!rawName) return
+        try {
+            const res = await fetch('/api/drawings/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: rawName })
+            })
+            const data = await res.json()
+            if (data.name) {
+                setFileList(prev => [data.name, ...prev])
+                loadFile(data.name)
+            }
+        } catch (e) {
+            alert('새 캔버스 생성 실패: ' + e)
+        }
+    }, [loadFile])
+
+    // Register window actions for CustomMainMenu
+    useEffect(() => {
+        ;(window as any).__OPEN_DRAWING_MODAL__ = () => setIsModalOpen(true)
+        ;(window as any).__NEW_DRAWING_PROMPT__ = handleNewCanvas
+        return () => {
+            delete (window as any).__OPEN_DRAWING_MODAL__
+            delete (window as any).__NEW_DRAWING_PROMPT__
+        }
+    }, [handleNewCanvas])
+
+    // Memoize components and assetUrls so <Tldraw> NEVER re-mounts
+    const components = useMemo(() => ({
+        MainMenu: CustomMainMenu,
+        SharePanel: () => null
+    }), [])
+
+    const handleMount = useCallback((ed: any) => {
+        editorRef.current = ed
+        ;(window as any).editor = ed
+
+        // Ensure canvas stays in light colorScheme even under Discord dark mode
+        try {
+            ed.user.updateUserPreferences({ colorScheme: 'light' })
+        } catch (_) {}
+
+        if (currentFileRef.current) {
+            loadFile(currentFileRef.current)
+        }
+
+        ed.store.listen((entry: any) => {
+            if (isLoadingRef.current) return
+            if (entry && entry.source === 'remote') return
+
+            clearTimeout(autoSaveTimerRef.current)
+            autoSaveTimerRef.current = setTimeout(() => {
+                if (isLoadingRef.current || !currentFileRef.current) return
+                const snapshot = ed.getSnapshot()
+                fetch('/api/drawings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file: currentFileRef.current, data: snapshot })
+                }).catch(console.error)
+            }, 2000)
+        })
+    }, [loadFile])
+
+    return (
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            {/* Modal Dialog for Opening Drawings */}
+            {isModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 99999,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 16
+                    }}
+                    onClick={() => setIsModalOpen(false)}
+                >
+                    <div
+                        style={{
+                            background: '#ffffff',
+                            borderRadius: 12,
+                            width: '100%',
+                            maxWidth: 480,
+                            maxHeight: '80vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                            overflow: 'hidden'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div style={{
+                            padding: '14px 18px',
+                            borderBottom: '1px solid #eee',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111' }}>
+                                📄 도면 열기 (llm-wiki)
+                            </h3>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    fontSize: 18,
+                                    cursor: 'pointer',
+                                    color: '#888',
+                                    padding: '4px 8px'
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Search & New Button */}
+                        <div style={{ padding: '10px 16px', display: 'flex', gap: 8, borderBottom: '1px solid #f0f0f0' }}>
+                            <input
+                                type="text"
+                                placeholder="도면 검색..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    borderRadius: 6,
+                                    border: '1px solid #ddd',
+                                    fontSize: 14,
+                                    outline: 'none'
+                                }}
+                            />
+                            <button
+                                onClick={() => {
+                                    setIsModalOpen(false)
+                                    handleNewCanvas()
+                                }}
+                                style={{
+                                    background: '#2f9e44',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    padding: '8px 14px',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                ➕ 새 도면
+                            </button>
+                        </div>
+
+                        {/* File List */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+                            {fileList
+                                .filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()))
+                                .map(name => (
+                                    <div
+                                        key={name}
+                                        onClick={() => {
+                                            loadFile(name)
+                                            setIsModalOpen(false)
+                                        }}
+                                        style={{
+                                            padding: '10px 14px',
+                                            borderRadius: 8,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            background: activeFileName === name ? '#e8f5e9' : '#f9f9f9',
+                                            fontWeight: activeFileName === name ? 700 : 500,
+                                            color: activeFileName === name ? '#2b8a3e' : '#333',
+                                            marginBottom: 6
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span>📄</span>
+                                            <span style={{ fontSize: 13 }}>{name}</span>
+                                        </div>
+                                        {activeFileName === name && <span style={{ fontSize: 12, color: '#2b8a3e' }}>열림 ✓</span>}
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <Tldraw
+                colorScheme="light"
+                components={components}
+                assetUrls={customAssetUrls}
+                shapeUtils={allShapeUtils}
+                licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+                onMount={handleMount}
+            />
         </div>
     )
 }
 
+const baseUrl = window.location.pathname.startsWith('/draw') ? `${window.location.origin}/draw` : window.location.origin;
+
+const defaultAssets = getAssetUrls({ baseUrl: `${baseUrl}/tldraw-assets/` });
+
 const customAssetUrls = {
+    ...defaultAssets,
     fonts: {
-        tldraw_draw: `${window.location.origin}/fonts/NanumPen.woff2`,
-        tldraw_sans: `${window.location.origin}/fonts/Pretendard.woff2`,
-        tldraw_serif: `${window.location.origin}/fonts/GowunBatang.woff2`,
-        tldraw_mono: `${window.location.origin}/fonts/D2Coding.woff2`
+        ...defaultAssets.fonts,
+        tldraw_draw: `${baseUrl}/fonts/KyoboHandwriting2023.woff`,
+        tldraw_sans: `${baseUrl}/fonts/Pretendard.woff2`,
+        tldraw_serif: `${baseUrl}/fonts/GowunBatang.woff2`,
+        tldraw_mono: `${baseUrl}/fonts/D2Coding.woff2`
     }
 }
 
@@ -701,12 +1000,15 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
      const storeSync = useSync({
 		uri: `${WORKER_URL}/connect/${roomId}`,
         assets: multiplayerAssets,
-        shapeUtils: allShapeUtils
+        shapeUtils: allShapeUtils as any
 	})
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw store={storeSync} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
+            <Tldraw
+                colorScheme="light"
+                store={storeSync as any}
+                components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
@@ -715,6 +1017,9 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                     // so MCP/agent automation (e.g. Playwright) can safely call editor.createShapes()
                     // etc. through the validated in-memory store instead of touching SQLite directly.
                     ;(window as any).editor = editor
+                    try {
+                        editor.user.updateUserPreferences({ colorScheme: 'light' })
+                    } catch (_) {}
                 }}
             />
         </div>

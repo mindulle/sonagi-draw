@@ -12,8 +12,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
+    "@mindulle/ui": "file:./vendor/mindulle-ui.tgz",
     "@sentry/react": "^10.66.0",
+    "@sonagi/tokens": "file:./vendor/mindulle-tokens.tgz",
     "@sonagi-draw/schema": "workspace:*",
+    "@tldraw/assets": "^5.6.0",
     "@tldraw/sync": "^5.3.0",
     "dompurify": "^3.4.12",
     "react": "^18.3.1",
