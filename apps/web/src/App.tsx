@@ -724,6 +724,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 const newUrl = new URL(window.location.href)
                 newUrl.searchParams.set('file', currentFile)
                 window.history.replaceState({}, '', newUrl.toString())
+                setTimeout(() => {
+                    try {
+                        editor.zoomToFit({ animation: { duration: 250 } })
+                    } catch (_) {}
+                }, 100)
             })
             .catch(err => {
                 console.error('Failed to load drawing snapshot:', err)
@@ -782,34 +787,39 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             {/* Top HUD Selector Bar */}
             <div style={{
                 position: 'absolute',
-                top: 10,
-                left: 60,
+                top: 8,
+                left: 54,
+                right: 8,
+                maxWidth: 420,
                 zIndex: 1000,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 6,
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdropFilter: 'blur(8px)',
-                padding: '4px 12px',
+                padding: '4px 8px',
                 borderRadius: 8,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
                 fontSize: 13,
-                fontWeight: 500,
                 color: '#333'
             }}>
-                <span style={{ fontSize: 14 }}>📄</span>
+                <span style={{ fontSize: 13 }}>📄</span>
                 <select
                     value={currentFile}
                     onChange={(e) => setCurrentFile(e.target.value)}
                     style={{
+                        flex: 1,
+                        minWidth: 0,
                         border: '1px solid #ccc',
                         borderRadius: 4,
-                        padding: '3px 8px',
-                        fontSize: 13,
-                        maxWidth: 220,
+                        padding: '4px 6px',
+                        fontSize: 12,
                         cursor: 'pointer',
                         outline: 'none',
-                        background: '#fff'
+                        background: '#fff',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden'
                     }}
                 >
                     {fileList.map(name => (
@@ -823,20 +833,24 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                         color: '#fff',
                         border: 'none',
                         borderRadius: 4,
-                        padding: '4px 10px',
+                        padding: '4px 8px',
                         fontSize: 12,
                         cursor: 'pointer',
-                        fontWeight: 600
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
                     }}
                 >
-                    ➕ 새 캔버스
+                    ➕ 새 도면
                 </button>
                 <span style={{
                     fontSize: 12,
                     fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                     color: saveStatus === 'saving' ? '#f59e0b' : saveStatus === 'error' ? '#e03131' : '#2f9e44'
                 }}>
-                    {saveStatus === 'saving' ? '💾 저장 중...' : saveStatus === 'error' ? '❌ 저장 실패' : '🟢 저장됨'}
+                    {saveStatus === 'saving' ? '💾' : saveStatus === 'error' ? '❌' : '🟢'}
                 </span>
             </div>
 
