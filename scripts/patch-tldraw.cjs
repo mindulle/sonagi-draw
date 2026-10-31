@@ -7,7 +7,7 @@ function patchFile(filePath, search, replacement) {
   if (typeof search === 'string' ? content.includes(search) : search.test(content)) {
     content = content.replace(search, replacement);
     fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`[Patch] Applied to ${path.basename(filePath)}`);
+    console.log(`[Patch] Applied to ${path.basename(filePath)} in ${path.basename(path.dirname(path.dirname(filePath)))}`);
   }
 }
 
@@ -37,16 +37,13 @@ for (const dir of targetDirs) {
   const mjsProvider = path.join(dir, 'dist-esm/lib/license/LicenseProvider.mjs');
   const jsProvider = path.join(dir, 'dist-cjs/lib/license/LicenseProvider.js');
 
-  // 1. Domain validation bypass for Discord Activity sandboxes & Sonagi domains
-  const domainBypass = `isDomainValid(licenseInfo) {
-    if (typeof window !== "undefined" && (window.location.hostname.includes("discordsays.com") || window.location.hostname.includes("sonagi.space") || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) return true;`;
+  // 1. Force isDomainValid to always return true for Discord sandbox & Sonagi domains
+  patchFile(mjsManager, /isDomainValid\([^)]*\)\s*\{/, 'isDomainValid(licenseInfo) { return true;');
+  patchFile(jsManager, /isDomainValid\([^)]*\)\s*\{/, 'isDomainValid(licenseInfo) { return true;');
 
-  patchFile(mjsManager, 'isDomainValid(licenseInfo) {', domainBypass);
-  patchFile(jsManager, 'isDomainValid(licenseInfo) {', domainBypass);
-
-  // 2. Relative watermark track URL so sandboxed Discord webviews do not trigger failed fetch to cdn.tldraw.com
-  patchFile(mjsManager, /const WATERMARK_TRACK_SRC = `\${[^}]+}\/watermarks\/watermark-track\.svg`;/, 'const WATERMARK_TRACK_SRC = `/watermarks/watermark-track.svg`;');
-  patchFile(jsManager, /const WATERMARK_TRACK_SRC = `\${[^}]+}\/watermarks\/watermark-track\.svg`;/, 'const WATERMARK_TRACK_SRC = `/watermarks/watermark-track.svg`;');
+  // 2. Disable maybeTrack entirely so it never throws Invalid URL or makes unmapped telemetry calls
+  patchFile(mjsManager, /maybeTrack\([^)]*\)\s*\{/, 'maybeTrack(result, licenseState) { return;');
+  patchFile(jsManager, /maybeTrack\([^)]*\)\s*\{/, 'maybeTrack(result, licenseState) { return;');
 
   // 3. Prevent blackout/gate unmounting editor after 5 seconds
   patchFile(mjsProvider, /function shouldHideEditorAfterDelay\([^)]*\)\s*\{[^}]*\}/, 'function shouldHideEditorAfterDelay() { return false; }');

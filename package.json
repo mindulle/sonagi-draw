@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "docker-compose up -d && pnpm -r dev",
-    "build": "pnpm -r build",
+    "build": "node scripts/patch-tldraw.cjs && pnpm -r build",
     "clean": "pnpm -r clean",
     "postinstall": "node scripts/patch-tldraw.cjs"
   },
