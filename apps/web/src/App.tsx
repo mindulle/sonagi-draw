@@ -658,25 +658,198 @@ const multiplayerAssets: TLAssetStore = {
 }
 
 function App() {
-	const [roomId, setRoomId] = useState<string | null>(null)
+	const [mode, setMode] = useState<'room' | 'file'>('file')
+	const [targetRoom, setTargetRoom] = useState<string | null>(null)
+	const [initialFile, setInitialFile] = useState<string | null>(null)
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search)
-        let room = urlParams.get('room')
-        if (!room) {
-            room = generateRoomId()
-            const newUrl = new URL(window.location.href)
-            newUrl.searchParams.set('room', room)
-            window.history.replaceState({}, '', newUrl.toString())
-        }
-        setRoomId(room)
-    }, [])
+        const room = urlParams.get('room')
+        const file = urlParams.get('file')
 
-    if (!roomId) return <div>Loading...</div>
+        if (room !== null) {
+            setMode('room')
+            setTargetRoom(room || generateRoomId())
+        } else {
+            setMode('file')
+            setInitialFile(file)
+        }
+    }, [])
 
 	return (
         <div style={{ position: 'fixed', inset: 0 }}>
-            <TldrawWrapper roomId={roomId} />
+            {mode === 'room' && targetRoom ? (
+                <TldrawWrapper roomId={targetRoom} />
+            ) : (
+                <TldrawFileWrapper initialFile={initialFile || undefined} />
+            )}
+        </div>
+    )
+}
+
+function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
+    const [fileList, setFileList] = useState<string[]>([])
+    const [currentFile, setCurrentFile] = useState<string>(initialFile || '')
+    const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
+    const [editor, setEditor] = useState<any>(null)
+
+    // 1. Fetch file list from /api/drawings
+    useEffect(() => {
+        fetch('/api/drawings')
+            .then(res => res.json())
+            .then(data => {
+                if (data.files && data.files.length > 0) {
+                    const names = data.files.map((f: any) => f.name)
+                    setFileList(names)
+                    if (!currentFile) {
+                        setCurrentFile(names[0])
+                    }
+                }
+            })
+            .catch(console.error)
+    }, [])
+
+    // 2. Load snapshot when currentFile changes
+    useEffect(() => {
+        if (!editor || !currentFile) return
+        setSaveStatus('saving')
+        fetch(`/api/drawings?file=${encodeURIComponent(currentFile)}`)
+            .then(res => {
+                if (!res.ok) throw new Error('File not found')
+                return res.json()
+            })
+            .then(snapshot => {
+                editor.loadSnapshot(snapshot)
+                setSaveStatus('saved')
+                const newUrl = new URL(window.location.href)
+                newUrl.searchParams.set('file', currentFile)
+                window.history.replaceState({}, '', newUrl.toString())
+            })
+            .catch(err => {
+                console.error('Failed to load drawing snapshot:', err)
+                setSaveStatus('error')
+            })
+    }, [editor, currentFile])
+
+    // 3. Auto-save debounced listener
+    useEffect(() => {
+        if (!editor || !currentFile) return
+        let timer: any = null
+        const cleanup = editor.store.listen(() => {
+            setSaveStatus('saving')
+            clearTimeout(timer)
+            timer = setTimeout(() => {
+                const snapshot = editor.getSnapshot()
+                fetch('/api/drawings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file: currentFile, data: snapshot })
+                })
+                    .then(res => res.json())
+                    .then(() => setSaveStatus('saved'))
+                    .catch(() => setSaveStatus('error'))
+            }, 1000)
+        })
+
+        return () => {
+            cleanup()
+            clearTimeout(timer)
+        }
+    }, [editor, currentFile])
+
+    const handleNewCanvas = async () => {
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const rawName = window.prompt('새 캔버스 이름을 입력하세요:', `Drawing_${todayStr}`)
+        if (!rawName) return
+        try {
+            const res = await fetch('/api/drawings/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: rawName })
+            })
+            const data = await res.json()
+            if (data.name) {
+                setFileList(prev => [data.name, ...prev])
+                setCurrentFile(data.name)
+            }
+        } catch (e) {
+            alert('새 캔버스 생성 실패: ' + e)
+        }
+    }
+
+    return (
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            {/* Top HUD Selector Bar */}
+            <div style={{
+                position: 'absolute',
+                top: 10,
+                left: 60,
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(8px)',
+                padding: '4px 12px',
+                borderRadius: 8,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
+                fontSize: 13,
+                fontWeight: 500,
+                color: '#333'
+            }}>
+                <span style={{ fontSize: 14 }}>📄</span>
+                <select
+                    value={currentFile}
+                    onChange={(e) => setCurrentFile(e.target.value)}
+                    style={{
+                        border: '1px solid #ccc',
+                        borderRadius: 4,
+                        padding: '3px 8px',
+                        fontSize: 13,
+                        maxWidth: 220,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        background: '#fff'
+                    }}
+                >
+                    {fileList.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                    ))}
+                </select>
+                <button
+                    onClick={handleNewCanvas}
+                    style={{
+                        background: '#2f9e44',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '4px 10px',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        fontWeight: 600
+                    }}
+                >
+                    ➕ 새 캔버스
+                </button>
+                <span style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: saveStatus === 'saving' ? '#f59e0b' : saveStatus === 'error' ? '#e03131' : '#2f9e44'
+                }}>
+                    {saveStatus === 'saving' ? '💾 저장 중...' : saveStatus === 'error' ? '❌ 저장 실패' : '🟢 저장됨'}
+                </span>
+            </div>
+
+            <Tldraw
+                components={{ MainMenu: CustomMainMenu, SharePanel: () => null }}
+                assetUrls={customAssetUrls}
+                shapeUtils={allShapeUtils}
+                licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+                onMount={(ed) => {
+                    ;(window as any).editor = ed
+                    setEditor(ed)
+                }}
+            />
         </div>
     )
 }
