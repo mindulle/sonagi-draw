@@ -8,7 +8,8 @@ import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
 import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { ErrorBoundary } from './ErrorBoundary'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
@@ -683,13 +684,15 @@ function App() {
     }, [])
 
 	return (
-        <div style={{ position: 'fixed', top: isDiscord ? 48 : 0, left: 0, right: 0, bottom: 0 }}>
-            {mode === 'room' && targetRoom ? (
-                <TldrawWrapper roomId={targetRoom} />
-            ) : (
-                <TldrawFileWrapper initialFile={initialFile || undefined} />
-            )}
-        </div>
+        <ErrorBoundary>
+            <div style={{ position: 'fixed', top: isDiscord ? 48 : 0, left: 0, right: 0, bottom: 0 }}>
+                {mode === 'room' && targetRoom ? (
+                    <TldrawWrapper roomId={targetRoom} />
+                ) : (
+                    <TldrawFileWrapper initialFile={initialFile || undefined} />
+                )}
+            </div>
+        </ErrorBoundary>
     )
 }
 
@@ -698,6 +701,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const [currentFile, setCurrentFile] = useState<string>(initialFile || '')
     const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
     const [editor, setEditor] = useState<any>(null)
+    const isLoadingRef = useRef<boolean>(false)
 
     // 1. Fetch file list from /api/drawings
     useEffect(() => {
@@ -718,7 +722,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     // 2. Load snapshot when currentFile changes
     useEffect(() => {
         if (!editor || !currentFile) return
-        setSaveStatus('saving')
+        isLoadingRef.current = true
         fetch(`/api/drawings?file=${encodeURIComponent(currentFile)}`)
             .then(res => {
                 if (!res.ok) throw new Error('File not found')
@@ -726,16 +730,16 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             })
             .then(snapshot => {
                 editor.loadSnapshot(snapshot)
-                setSaveStatus('saved')
                 setTimeout(() => {
+                    isLoadingRef.current = false
                     try {
                         editor.zoomToFit({ animation: { duration: 250 } })
                     } catch (_) {}
-                }, 100)
+                }, 200)
             })
             .catch(err => {
                 console.error('Failed to load drawing snapshot:', err)
-                setSaveStatus('error')
+                isLoadingRef.current = false
             })
     }, [editor, currentFile])
 
@@ -743,10 +747,14 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     useEffect(() => {
         if (!editor || !currentFile) return
         let timer: any = null
-        const cleanup = editor.store.listen(() => {
+        const cleanup = editor.store.listen((entry: any) => {
+            if (isLoadingRef.current) return
+            if (entry && entry.source === 'remote') return
+
             setSaveStatus('saving')
             clearTimeout(timer)
             timer = setTimeout(() => {
+                if (isLoadingRef.current) return
                 const snapshot = editor.getSnapshot()
                 fetch('/api/drawings', {
                     method: 'POST',
@@ -756,7 +764,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                     .then(res => res.json())
                     .then(() => setSaveStatus('saved'))
                     .catch(() => setSaveStatus('error'))
-            }, 1000)
+            }, 1500)
         })
 
         return () => {
