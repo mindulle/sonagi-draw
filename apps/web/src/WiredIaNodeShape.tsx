@@ -1,5 +1,6 @@
 import { WiredIaNodeProps, WiredIaNodeMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredIaNodeShape = TLBaseShape<'wired-ia-node', { w: number, h: number, title: string, index: string, color: string }>
 
@@ -25,11 +26,11 @@ export class WiredIaNodeShapeUtil extends ShapeUtil<WiredIaNodeShape> {
         const { w, h, title, index, color } = shape.props
         return (
             <HTMLContainer id={shape.id} style={{ width: w, height: h, pointerEvents: 'all' }}>
-                <div style={{ width: '100%', height: '100%', position: 'relative', background: '#fff', borderRadius: '6px', border: `2px solid ${color}`, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '40px', background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', borderTopLeftRadius: '4px', borderBottomLeftRadius: '4px', fontSize: '12px' }}>
+                <div style={{ width: '100%', height: '100%', position: 'relative', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', borderRadius: '6px', border: `2px solid ${color}`, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '40px', background: color, color: tokens["--semantic-light-color-bg-elevated"] || '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', borderTopLeftRadius: '4px', borderBottomLeftRadius: '4px', fontSize: '12px' }}>
                         {index}
                     </div>
-                    <div style={{ position: 'absolute', left: '50px', top: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', color: '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    <div style={{ position: 'absolute', left: '50px', top: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', color: tokens["--semantic-light-color-text-primary"] || '#111', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                         {title}
                     </div>
                 </div>

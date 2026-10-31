@@ -1,5 +1,6 @@
 import { WiredDataTableProps, WiredDataTableMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredDataTableShape = TLBaseShape<
     'wired-data-table',
@@ -129,7 +130,7 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
                                             fontSize: isHeader ? '14px' : '13px',
                                             fontWeight: isHeader ? 'bold' : 'normal',
                                             textAlign: 'center',
-                                            color: '#111'
+                                            color: tokens["--semantic-light-color-text-primary"] || '#111'
                                         }}
                                     />
                                 )
@@ -145,7 +146,7 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
                                     e.stopPropagation()
                                     this.editor.updateShape({ id: shape.id, type: shape.type as any, props: { cols: cols + 1 } } as any)
                                 }}
-                                style={{ position: 'absolute', top: '50%', right: -30, transform: 'translateY(-50%)', width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ position: 'absolute', top: '50%', right: -30, transform: 'translateY(-50%)', width: 24, height: 24, borderRadius: '50%', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
                             >+</button>
                             {cols > 1 && (
                                 <button
@@ -153,7 +154,7 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
                                         e.stopPropagation()
                                         this.editor.updateShape({ id: shape.id, type: shape.type as any, props: { cols: cols - 1 } } as any)
                                     }}
-                                    style={{ position: 'absolute', top: '50%', right: -60, transform: 'translateY(-50%)', width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
+                                    style={{ position: 'absolute', top: '50%', right: -60, transform: 'translateY(-50%)', width: 24, height: 24, borderRadius: '50%', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
                                 >-</button>
                             )}
 
@@ -162,7 +163,7 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
                                     e.stopPropagation()
                                     this.editor.updateShape({ id: shape.id, type: shape.type as any, props: { rows: rows + 1 } } as any)
                                 }}
-                                style={{ position: 'absolute', bottom: -30, left: '50%', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ position: 'absolute', bottom: -30, left: '50%', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
                             >+</button>
                             {rows > 1 && (
                                 <button
@@ -170,7 +171,7 @@ export class WiredDataTableShapeUtil extends ShapeUtil<WiredDataTableShape> {
                                         e.stopPropagation()
                                         this.editor.updateShape({ id: shape.id, type: shape.type as any, props: { rows: rows - 1 } } as any)
                                     }}
-                                    style={{ position: 'absolute', bottom: -30, left: 'calc(50% + 30px)', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
+                                    style={{ position: 'absolute', bottom: -30, left: 'calc(50% + 30px)', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', background: tokens["--semantic-light-color-bg-elevated"] || '#fff', border: '1px solid #000', cursor: 'pointer', fontWeight: 'bold' }}
                                 >-</button>
                             )}
                         </>

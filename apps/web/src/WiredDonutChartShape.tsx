@@ -1,5 +1,6 @@
 import { WiredDonutChartProps, WiredDonutChartMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredDonutChartShape = TLBaseShape<
     'wired-donut-chart',
@@ -21,7 +22,7 @@ export class WiredDonutChartShapeUtil extends ShapeUtil<WiredDonutChartShape> {
         return {
             w: 200,
             h: 200,
-            color: '#10b981',
+            color: tokens["--semantic-light-color-state-success"] || '#10b981',
             values: "30, 40, 20, 10"
         }
     }

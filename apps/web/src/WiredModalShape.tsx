@@ -1,5 +1,6 @@
 import { WiredModalProps, WiredModalMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredModalShape = TLBaseShape<
     'wired-modal',
@@ -50,7 +51,7 @@ export class WiredModalShapeUtil extends ShapeUtil<WiredModalShape> {
                         width: w,
                         height: h,
                         pointerEvents: 'all',
-                        background: '#ffffff',
+                        background: tokens["--semantic-light-color-bg-elevated"] || '#ffffff',
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
                     }}
                 >
@@ -91,7 +92,7 @@ export class WiredModalShapeUtil extends ShapeUtil<WiredModalShape> {
                             fontFamily: 'var(--tl-font-draw), Comic Sans MS, cursive, sans-serif',
                             fontWeight: 'bold',
                             fontSize: '16px',
-                            color: '#111',
+                            color: tokens["--semantic-light-color-text-primary"] || '#111',
                             pointerEvents: 'none'
                         }}>
                             {title}

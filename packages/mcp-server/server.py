@@ -13,25 +13,21 @@ from mcp.server.fastmcp import FastMCP
 # FastMCP 초기화
 mcp = FastMCP("sonagi-draw-mcp")
 
-# Tldraw DB 경로 (llmops 로컬 미러 - Syncthing으로 devops:/home/mindulle/sonagi-draw/data와 동기화됨)
-# 주의: get_room_state 등 "읽기 전용" 조회 도구만 이 경로를 직접 사용합니다.
-# 도형을 "쓰는" 모든 도구(push_to_inbox 등)는 이제 SQLite를 직접 건드리지 않고
-# bridge/canvas_bridge.mjs를 통해 실제 Tldraw Editor API로 안전하게 기록합니다.
+# Tldraw DB 경로 (llmops 로컬 미러).
+# CEO-933: 이 로컬 미러는 실제 프로덕션 sync-server와 동기화되지 않는 것으로 확인됨
+# (Syncthing이 이 경로를 관리하지 않음 - get_room_state 수정 시 검증됨). 따라서 이 경로는
+# 이제 오직 (1) init_db의 템플릿 파일 복사/room DB 존재 여부 체크, (2) set_template_room/
+# list_templates/delete_room/cleanup_all_test_rooms 같은 순수 파일 단위 작업에만 쓰입니다.
+# 방/캔버스의 실제 도형(shape)을 만들거나 조회하는 모든 도구(create_room, add_sticky_note,
+# add_wireframe_box, generate_moodboard_layout, get_room_state, push_to_inbox,
+# get_page_shapes_live)는 SQLite를 전혀 건드리지 않고 bridge/canvas_bridge.mjs
+# (Playwright + 실제 window.editor API)를 통해 안전하게 기록/조회합니다.
 DB_DIR = "/home/ubuntu/sonagi-draw-prod/.rooms"
 TEMPLATE_DIR = "/home/ubuntu/sonagi-draw-prod/.templates"
 
 # canvas_bridge.mjs 위치 및 배포된 화이트보드 URL (Nginx 프록시 경유)
 BRIDGE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bridge", "canvas_bridge.mjs")
 DRAW_BASE_URL = "https://draw.sonagi.space"
-
-import string
-
-# 전역 인덱스 카운터 (Fractional Index 충돌 방지용)
-_index_counter = 0
-def get_next_index():
-    global _index_counter
-    _index_counter += 1
-    return f"c{_index_counter:03d}"
 
 # MinIO (CDN) 클라이언트 설정
 s3_client = boto3.client(
@@ -70,6 +66,13 @@ def upload_image_to_cdn(image_url: str) -> str:
 def get_db_path(room_id: str) -> str:
     return os.path.join(DB_DIR, f"{room_id}.db")
 
+
+def _run_bridge_or_none(args: Dict[str, Any]) -> Optional[str]:
+    """_run_bridge를 호출하되 오류 문자열("❌...")이면 그대로 반환하고, 성공하면 None을 반환합니다.
+    '오류가 있으면 즉시 반환, 없으면 계속 진행'하는 형태의 얕은 가드로 각 도구에서 재사용합니다."""
+    result = _run_bridge(args)
+    return result if result.startswith("❌") else None
+
 def init_db(db_path: str, template_name: str = "default"):
     # 지정된 템플릿 DB 복사하여 초기화
     template_path = os.path.join(TEMPLATE_DIR, f"{template_name}.db")
@@ -102,84 +105,6 @@ def init_db(db_path: str, template_name: str = "default"):
     conn.commit()
     conn.close()
 
-def add_shape_to_db(db_path: str, item_dict: dict):
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT MAX(lastChangedClock) FROM documents")
-    row = c.fetchone()
-    clock = (row[0] if row[0] is not None else 0) + 1
-    
-    c.execute("INSERT INTO documents (id, state, lastChangedClock) VALUES (?, ?, ?)", 
-              (item_dict["id"], json.dumps(item_dict).encode('utf-8'), clock))
-    conn.commit()
-    conn.close()
-
-def to_rich_text(text: str) -> dict:
-    lines = text.split("\n")
-    content = []
-    for line in lines:
-        if not line:
-            content.append({"type": "paragraph", "content": []})
-        else:
-            content.append({
-                "type": "paragraph",
-                "content": [{"type": "text", "text": line}]
-            })
-    return {"type": "doc", "content": content}
-
-def create_text_shape(x: float, y: float, text: str, color: str = "black", size: str = "m", parent_id: str = "page:page"):
-    return {
-        "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
-        "id": f"shape:{uuid.uuid4()}", "type": "text", 
-        "props": {"color": color, "size": size, "w": 200, "richText": to_rich_text(text), "font": "draw", "textAlign": "middle", "autoSize": True, "scale": 1},
-        "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
-    }
-
-def create_rect_shape(x: float, y: float, w: float, h: float, color: str = "black", fill: str = "solid", parent_id: str = "page:page"):
-    return {
-        "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
-        "id": f"shape:{uuid.uuid4()}", "type": "geo", 
-        "props": {"w": w, "h": h, "geo": "rectangle", "color": color, "labelColor": "black", "fill": fill, "dash": "draw", "size": "m", "font": "draw", "richText": to_rich_text(""), "align": "middle", "verticalAlign": "middle", "growY": 0, "url": "", "scale": 1}, 
-        "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
-    }
-
-def create_note_shape(x: float, y: float, text: str, color: str = "yellow", size: str = "m", parent_id: str = "page:page"):
-    return {
-        "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
-        "id": f"shape:{uuid.uuid4()}", "type": "note", 
-        "props": {"color": color, "size": size, "richText": to_rich_text(text), "font": "draw", "align": "middle", "verticalAlign": "middle", "growY": 0, "url": "", "scale": 1, "fontSizeAdjustment": None, "labelColor": "black", "textLastEditedBy": None},
-        "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
-    }
-
-def add_image_with_asset(db_path: str, x: float, y: float, w: float, h: float, url: str, parent_id: str = "page:page"):
-    # 외부 이미지를 CDN으로 이주 (Hotlinking 방어)
-    cdn_url = upload_image_to_cdn(url)
-    
-    asset_id = f"asset:{uuid.uuid4()}"
-    asset_dict = {
-        "id": asset_id,
-        "type": "image",
-        "typeName": "asset",
-        "props": {
-            "name": "image.png",
-            "src": cdn_url,
-            "w": w,
-            "h": h,
-            "isAnimated": False,
-            "mimeType": "image/jpeg"
-        },
-        "meta": {}
-    }
-    image_shape = {
-        "x": x, "y": y, "rotation": 0, "isLocked": False, "opacity": 1, "meta": {}, 
-        "id": f"shape:{uuid.uuid4()}", "type": "image", 
-        "props": {"w": w, "h": h, "playing": True, "url": "", "assetId": asset_id, "crop": None, "flipX": False, "flipY": False, "altText": ""},
-        "parentId": parent_id, "index": get_next_index(), "typeName": "shape"
-    }
-    add_shape_to_db(db_path, asset_dict)
-    add_shape_to_db(db_path, image_shape)
-
-
 @mcp.tool()
 def create_room(title: str, issue_id: Optional[str] = None, template_name: str = "default") -> str:
     """
@@ -189,80 +114,80 @@ def create_room(title: str, issue_id: Optional[str] = None, template_name: str =
     os.makedirs(DB_DIR, exist_ok=True)
     room_id = uuid.uuid4().hex[:8]
     db_path = get_db_path(room_id)
-    
+
+    # 템플릿 DB를 그대로 복사하는 것은 순수 파일 복사라 안전함 (fractional index 검증과 무관).
     init_db(db_path, template_name)
-    
-    if template_name == "default":
-        # Page 1: Moodboard 타이틀
-        add_shape_to_db(db_path, create_text_shape(100, 50, f"🎨 {title}", size="xl", parent_id="page:page"))
-        if issue_id:
-            add_shape_to_db(db_path, create_text_shape(100, 120, f"🔗 Associated with Issue: {issue_id}", color="blue", size="s", parent_id="page:page"))
-        
-        # Page 2: Wireframe & UI Kit 초기 세팅
-        generate_wireframe_kit(room_id)
-        
-        # Page 3: User Journey 초기 세팅
-        generate_user_journey(room_id)
-        
+
     room_url = f"https://draw.sonagi.space/?room={room_id}"
+
+    if template_name == "default":
+        # CEO-933: 예전에는 여기서 add_shape_to_db로 SQLite에 직접 타이틀/와이어프레임
+        # 키트/유저 저니 도형을 써넣었음. 이 로컬 DB 미러는 실제 프로덕션 sync-server와
+        # 동기화되지 않는다는 사실이 get_room_state 수정 때 이미 확인됐고(Syncthing이
+        # 이 경로를 관리하지 않음), 설령 동기화되더라도 c001/c002 같은 자체 카운터
+        # 기반 index는 tldraw의 실제 fractional-indexing 포맷이 아니라서 실제 클라이언트가
+        # 접속했을 때 스토어 검증에 실패해 sync-server를 무한 재시작 크래시에 빠뜨렸음.
+        # 이제 canvas_bridge.mjs(Playwright + 실제 window.editor API)가 새 방에
+        # 3개 탭을 만들고(page:page는 tldraw가 항상 만들어주는 기본 페이지를 재사용/이름변경,
+        # page:wireframe/page:journey는 editor.createPage()로 신규 생성) 도형을
+        # editor.createShapes()로 채워 넣으므로 항상 유효한 상태만 기록됩니다.
+        args = {
+            "action": "create_room_content",
+            "baseUrl": DRAW_BASE_URL,
+            "roomId": room_id,
+            "title": title,
+            "issueId": issue_id,
+        }
+        error = _run_bridge_or_none(args)
+        if error:
+            return f"⚠️ 방은 생성되었으나 초기 콘텐츠 주입 중 오류가 발생했습니다: {error}\n방 URL: {room_url}"
+
     return f"✅ 방 생성 완료: {room_url}"
-
-def generate_wireframe_kit(room_id: str):
-    db_path = get_db_path(room_id)
-    # Mobile frame
-    add_shape_to_db(db_path, create_rect_shape(100, 200, 375, 812, color="grey", fill="none", parent_id="page:wireframe"))
-    add_shape_to_db(db_path, create_text_shape(100, 150, "📱 Mobile App", size="m", parent_id="page:wireframe"))
-    
-    # Web frame
-    add_shape_to_db(db_path, create_rect_shape(600, 200, 1280, 800, color="grey", fill="none", parent_id="page:wireframe"))
-    add_shape_to_db(db_path, create_text_shape(600, 150, "💻 Web Desktop", size="m", parent_id="page:wireframe"))
-    
-    # UI Kit Components (Buttons, inputs)
-    add_shape_to_db(db_path, create_text_shape(100, 1100, "📦 UI Kit (Drag & Drop)", size="l", parent_id="page:wireframe"))
-    add_shape_to_db(db_path, create_rect_shape(100, 1160, 150, 48, color="blue", fill="semi", parent_id="page:wireframe")) # Button
-    add_shape_to_db(db_path, create_text_shape(125, 1172, "Primary Btn", color="white", size="s", parent_id="page:wireframe"))
-    add_shape_to_db(db_path, create_rect_shape(300, 1160, 200, 48, color="grey", fill="none", parent_id="page:wireframe")) # Input
-    add_shape_to_db(db_path, create_text_shape(320, 1172, "Input text...", size="s", color="grey", parent_id="page:wireframe"))
-
-def generate_user_journey(room_id: str):
-    db_path = get_db_path(room_id)
-    add_shape_to_db(db_path, create_text_shape(100, 100, "🗺️ User Journey Flowchart", size="xl", parent_id="page:journey"))
-    add_shape_to_db(db_path, create_note_shape(100, 200, "1. 사용자가 랜딩 페이지 접속\n(스크롤 유도)", color="blue", parent_id="page:journey"))
-    add_shape_to_db(db_path, create_note_shape(400, 200, "2. CTA 버튼 클릭\n(가입 모달 노출)", color="yellow", parent_id="page:journey"))
-    add_shape_to_db(db_path, create_note_shape(700, 200, "3. 결제 및 온보딩 완료\n(대시보드 이동)", color="green", parent_id="page:journey"))
 
 @mcp.tool()
 def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: List[str], rules: str) -> str:
     """
     [Phase 1] 이미지 배열, 컬러 팔레트, 텍스트 규칙을 tldraw 캔버스에 시각적으로 정렬하여 렌더링합니다.
     """
+    if not room_id or not all(c.isalnum() or c in "-_" for c in room_id):
+        return "❌ 오류: 올바르지 않은 Room ID 형식입니다."
+
     db_path = get_db_path(room_id)
     if not os.path.exists(db_path):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
-    
-    # 1. 텍스트 룰스 (우측 배치)
-    add_shape_to_db(db_path, create_text_shape(800, 200, "📌 Design Rules", size="l"))
-    add_shape_to_db(db_path, create_text_shape(800, 260, rules, size="m"))
-    
-    # 2. 컬러 팔레트 텍스트 가이드 (우측 하단)
-    add_shape_to_db(db_path, create_text_shape(800, 500, "🎨 Color Palette (Reference)", size="l"))
-    for i, hex_code in enumerate(palette_hex):
-        x_pos = 800 + (i * 120)
-        # 헥스 코드 텍스트만 남김 (어색한 검은색 사각형 도형 제거)
-        add_shape_to_db(db_path, create_text_shape(x_pos, 540, hex_code, size="s"))
-        
-    # 3. 이미지 그리드 (좌측 배치)
+
+    # 이미지 그리드 좌표 계산 및 CDN 업로드(핫링크 방어)는 SQL과 무관하므로 그대로 Python에서 수행.
     start_x, start_y = 100, 200
     gap = 20
     img_w, img_h = 300, 300
-    
+    images = []
     for i, url in enumerate(image_urls):
         col = i % 2
         row = i // 2
         x = start_x + col * (img_w + gap)
         y = start_y + row * (img_h + gap)
-        add_image_with_asset(db_path, x, y, img_w, img_h, url)
-        
+        cdn_url = upload_image_to_cdn(url)
+        images.append({
+            "assetId": f"asset:{uuid.uuid4()}",
+            "cdnUrl": cdn_url,
+            "x": x, "y": y, "w": img_w, "h": img_h,
+        })
+
+    # CEO-933: 텍스트/팔레트/이미지 도형 생성을 add_shape_to_db(raw SQL) 대신
+    # canvas_bridge.mjs를 통해 실제 window.editor API로 안전하게 수행합니다.
+    args = {
+        "action": "generate_moodboard_layout",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "pageId": "page:page",
+        "rules": rules,
+        "paletteHex": palette_hex,
+        "images": images,
+    }
+    error = _run_bridge_or_none(args)
+    if error:
+        return error
+
     return f"✅ 무드보드 레이아웃 완료 (Images: {len(image_urls)}, Palette: {len(palette_hex)})"
 
 @mcp.tool()

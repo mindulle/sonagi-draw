@@ -1,5 +1,6 @@
 import { WiredBarChartProps, WiredBarChartMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredBarChartShape = TLBaseShape<
     'wired-bar-chart',
@@ -21,7 +22,7 @@ export class WiredBarChartShapeUtil extends ShapeUtil<WiredBarChartShape> {
         return {
             w: 300,
             h: 200,
-            color: '#3b82f6',
+            color: tokens["--semantic-light-color-accent-default"] || '#3b82f6',
             values: "40, 80, 55, 90, 30"
         }
     }

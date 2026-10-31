@@ -1,5 +1,6 @@
 import { WiredMcpInboxProps, WiredMcpInboxMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredMcpInboxShape = TLBaseShape<'wired-mcp-inbox', { w: number, h: number, title: string, payload: string }>
 
@@ -29,8 +30,8 @@ export class WiredMcpInboxShapeUtil extends ShapeUtil<WiredMcpInboxShape> {
         
         return (
             <HTMLContainer id={shape.id} style={{ width: w, height: h, pointerEvents: 'all' }}>
-                <div style={{ width: '100%', height: '100%', background: '#f8fafc', borderRadius: '12px', border: '3px dashed #94a3b8', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div style={{ background: '#94a3b8', color: '#fff', padding: '8px 12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '100%', height: '100%', background: tokens["--semantic-light-color-bg-base"] || '#f8fafc', borderRadius: '12px', border: '3px dashed #94a3b8', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ background: '#94a3b8', color: tokens["--semantic-light-color-bg-elevated"] || '#fff', padding: '8px 12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         🤖 {title}
                     </div>
                     <div style={{ padding: '16px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -40,9 +41,9 @@ export class WiredMcpInboxShapeUtil extends ShapeUtil<WiredMcpInboxShape> {
                             </div>
                         )}
                         {Array.isArray(parsed) && parsed.map((item: any, i: number) => (
-                            <div key={i} style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                            <div key={i} style={{ background: tokens["--semantic-light-color-bg-elevated"] || '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                                 {item.imageUrl && <img src={item.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: '4px', marginBottom: '8px' }} />}
-                                {item.text && <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{item.text}</div>}
+                                {item.text && <div style={{ fontSize: '14px', color: tokens["--semantic-light-color-text-secondary"] || '#334155', whiteSpace: 'pre-wrap' }}>{item.text}</div>}
                             </div>
                         ))}
                     </div>

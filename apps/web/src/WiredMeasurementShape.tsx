@@ -1,5 +1,6 @@
 import { WiredMeasurementProps, WiredMeasurementMigrations } from '@sonagi-draw/schema'
 import { HTMLContainer, ShapeUtil, TLBaseShape, Rectangle2d, RecordProps } from 'tldraw'
+import { tokens } from '@sonagi/tokens'
 
 export type WiredMeasurementShape = TLBaseShape<'wired-measurement', { w: number, h: number, axis: string, value: string, color: string }>
 
@@ -10,7 +11,7 @@ export class WiredMeasurementShapeUtil extends ShapeUtil<WiredMeasurementShape> 
     static override migrations = WiredMeasurementMigrations
 
     override getDefaultProps(): WiredMeasurementShape['props'] {
-        return { w: 200, h: 24, axis: 'x', value: '24px', color: '#ef4444' }
+        return { w: 200, h: 24, axis: 'x', value: '24px', color: tokens["--semantic-light-color-state-error"] || '#ef4444' }
     }
 
     override getGeometry(shape: WiredMeasurementShape) {
@@ -35,7 +36,7 @@ export class WiredMeasurementShapeUtil extends ShapeUtil<WiredMeasurementShape> 
                     <div style={{ position: 'absolute', left: isX ? 0 : 'calc(50% - 4px)', top: isX ? 'calc(50% - 4px)' : 0, width: 8, height: 8, borderLeft: `2px solid ${color}`, borderTop: `2px solid ${color}`, transform: isX ? 'rotate(-45deg)' : 'rotate(45deg)' }} />
                     <div style={{ position: 'absolute', right: isX ? 0 : 'calc(50% - 4px)', bottom: isX ? 'calc(50% - 4px)' : 0, width: 8, height: 8, borderRight: `2px solid ${color}`, borderBottom: `2px solid ${color}`, transform: isX ? 'rotate(-45deg)' : 'rotate(45deg)' }} />
                     {/* Text Label */}
-                    <div style={{ background: color, color: '#fff', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', zIndex: 1 }}>
+                    <div style={{ background: color, color: tokens["--semantic-light-color-bg-elevated"] || '#fff', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', zIndex: 1 }}>
                         {value}
                     </div>
                 </div>
