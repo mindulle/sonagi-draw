@@ -8,7 +8,7 @@ import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
 import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
@@ -782,80 +782,74 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
         }
     }
 
+    const CustomPageMenu = useCallback(() => (
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            height: 38,
+            padding: '0 8px',
+            background: 'var(--color-panel, #ffffff)',
+            borderRadius: 'var(--radius-2, 8px)',
+            boxShadow: 'var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1))',
+            border: '1px solid var(--color-muted-1, #e6e6e6)',
+            fontSize: 13
+        }}>
+            <span style={{ fontSize: 13, opacity: 0.8 }}>📄</span>
+            <select
+                value={currentFile}
+                onChange={(e) => setCurrentFile(e.target.value)}
+                style={{
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    maxWidth: 160,
+                    cursor: 'pointer',
+                    color: 'var(--color-text, #333)',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden'
+                }}
+            >
+                {fileList.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                ))}
+            </select>
+            <button
+                onClick={handleNewCanvas}
+                title="새 캔버스 만들기"
+                style={{
+                    background: '#2f9e44',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    width: 22,
+                    height: 22,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontWeight: 700
+                }}
+            >
+                ➕
+            </button>
+            <span
+                title={saveStatus === 'saving' ? '저장 중...' : saveStatus === 'error' ? '저장 실패' : '자동 저장됨'}
+                style={{ fontSize: 11, cursor: 'default' }}
+            >
+                {saveStatus === 'saving' ? '💾' : saveStatus === 'error' ? '❌' : '🟢'}
+            </span>
+        </div>
+    ), [currentFile, fileList, saveStatus])
+
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            {/* Top HUD Selector Bar */}
-            <div style={{
-                position: 'absolute',
-                top: 8,
-                left: 54,
-                right: 8,
-                maxWidth: 420,
-                zIndex: 1000,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(8px)',
-                padding: '4px 8px',
-                borderRadius: 8,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
-                fontSize: 13,
-                color: '#333'
-            }}>
-                <span style={{ fontSize: 13 }}>📄</span>
-                <select
-                    value={currentFile}
-                    onChange={(e) => setCurrentFile(e.target.value)}
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        border: '1px solid #ccc',
-                        borderRadius: 4,
-                        padding: '4px 6px',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        outline: 'none',
-                        background: '#fff',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden'
-                    }}
-                >
-                    {fileList.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                    ))}
-                </select>
-                <button
-                    onClick={handleNewCanvas}
-                    style={{
-                        background: '#2f9e44',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 4,
-                        padding: '4px 8px',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0
-                    }}
-                >
-                    ➕ 새 도면
-                </button>
-                <span style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    color: saveStatus === 'saving' ? '#f59e0b' : saveStatus === 'error' ? '#e03131' : '#2f9e44'
-                }}>
-                    {saveStatus === 'saving' ? '💾' : saveStatus === 'error' ? '❌' : '🟢'}
-                </span>
-            </div>
-
             <Tldraw
-                components={{ MainMenu: CustomMainMenu, SharePanel: () => null }}
+                components={{ MainMenu: CustomMainMenu, PageMenu: CustomPageMenu, SharePanel: () => null }}
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
@@ -872,7 +866,7 @@ const baseUrl = window.location.pathname.startsWith('/draw') ? `${window.locatio
 
 const customAssetUrls = {
     fonts: {
-        tldraw_draw: `${baseUrl}/fonts/NanumPen.woff2`,
+        tldraw_draw: `${baseUrl}/fonts/KyoboHandwriting2023.woff`,
         tldraw_sans: `${baseUrl}/fonts/Pretendard.woff2`,
         tldraw_serif: `${baseUrl}/fonts/GowunBatang.woff2`,
         tldraw_mono: `${baseUrl}/fonts/D2Coding.woff2`
