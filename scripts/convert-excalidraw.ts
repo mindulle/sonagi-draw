@@ -1,5 +1,12 @@
-import fs from "node:fs";
-import path from "node:path";
+import { defaultShapeUtils, createTLStore, getIndexBetween } from "tldraw";
+
+const storeInstance = createTLStore({ shapeUtils: defaultShapeUtils });
+const Geo = defaultShapeUtils.find(u => u.type === "geo")!;
+const defaultGeoProps = new Geo(storeInstance.schema).getDefaultProps();
+const Text = defaultShapeUtils.find(u => u.type === "text")!;
+const defaultTextProps = new Text(storeInstance.schema).getDefaultProps();
+const Arrow = defaultShapeUtils.find(u => u.type === "arrow")!;
+const defaultArrowProps = new Arrow(storeInstance.schema).getDefaultProps();
 
 interface ExcalidrawElement {
   id: string;
@@ -14,36 +21,16 @@ interface ExcalidrawElement {
   fillStyle?: string;
   strokeWidth?: number;
   strokeStyle?: string;
-  roughness?: number;
   opacity?: number;
-  groupIds?: string[];
-  roundness?: any;
-  seed?: number;
-  version?: number;
-  versionNonce?: number;
-  isDeleted?: boolean;
-  boundElements?: any[];
-  updated?: number;
-  link?: string | null;
   locked?: boolean;
   text?: string;
   fontSize?: number;
-  fontFamily?: number;
   textAlign?: string;
-  verticalAlign?: string;
-  baseline?: number;
-  containerId?: string | null;
-  originalText?: string;
   points?: [number, number][];
-  startBinding?: any;
-  endBinding?: any;
   startArrowhead?: string | null;
   endArrowhead?: string | null;
-}
-
-// Fractional indexing generator
-function getIndex(i: number): string {
-  return "a" + (i + 1).toString().padStart(4, "0");
+  link?: string | null;
+  isDeleted?: boolean;
 }
 
 function mapColor(hex: string | undefined): string {
@@ -60,19 +47,63 @@ function mapColor(hex: string | undefined): string {
   return "black";
 }
 
+function makeRichText(rawText: string) {
+  if (!rawText) {
+    return {
+      type: "doc",
+      content: [{ type: "paragraph" }]
+    };
+  }
+  const lines = rawText.split("\n");
+  const paragraphs = lines.map(line => ({
+    type: "paragraph",
+    content: line ? [{ type: "text", text: line }] : []
+  }));
+  return {
+    type: "doc",
+    content: paragraphs
+  };
+}
+
+function sanitizeUrl(link: string | null | undefined): string {
+  if (!link) return "";
+  if (link.startsWith("http://") || link.startsWith("https://")) return link;
+  return "";
+}
+
 export function convertExcalidrawToTldraw(elements: ExcalidrawElement[]): any {
-  const shapes: any[] = [];
+  const pageIndex = getIndexBetween(null, null);
+  let currentIndex = pageIndex;
+
+  const storeDict: Record<string, any> = {
+    "document:document": {
+      id: "document:document",
+      typeName: "document",
+      gridSize: 10,
+      name: "",
+      meta: {}
+    },
+    "page:page": {
+      id: "page:page",
+      typeName: "page",
+      name: "Page 1",
+      index: pageIndex,
+      meta: {}
+    }
+  };
+
   const validElements = elements.filter((e) => !e.isDeleted);
 
-  validElements.forEach((el, idx) => {
+  validElements.forEach((el) => {
     const shapeId = `shape:${el.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-    const index = getIndex(idx);
+    currentIndex = getIndexBetween(currentIndex, null);
+    const index = currentIndex;
     const opacity = (el.opacity ?? 100) / 100;
     const color = mapColor(el.strokeColor);
 
     if (el.type === "rectangle" || el.type === "ellipse" || el.type === "diamond") {
       const geoType = el.type === "diamond" ? "rhombus" : el.type;
-      shapes.push({
+      storeDict[shapeId] = {
         id: shapeId,
         typeName: "shape",
         type: "geo",
@@ -83,25 +114,24 @@ export function convertExcalidrawToTldraw(elements: ExcalidrawElement[]): any {
         parentId: "page:page",
         isLocked: el.locked || false,
         opacity,
+        meta: {},
         props: {
-          w: Math.max(10, el.width),
-          h: Math.max(10, el.height),
+          ...defaultGeoProps,
+          w: Math.max(20, el.width),
+          h: Math.max(20, el.height),
           geo: geoType,
           color,
-          labelColor: "black",
           fill: el.backgroundColor && el.backgroundColor !== "transparent" ? "semi" : "none",
-          dash: el.strokeStyle === "dashed" ? "dashed" : el.strokeStyle === "dotted" ? "dotted" : "draw",
-          size: el.strokeWidth && el.strokeWidth > 2 ? "l" : "m",
-          font: "draw",
-          text: "",
-          align: "middle",
-          verticalAlign: "middle",
-          growY: 0,
-          url: el.link || ""
+          dash: el.strokeStyle === "dashed" ? "dashed" : "draw",
+          url: sanitizeUrl(el.link)
         }
-      });
+      };
     } else if (el.type === "text") {
-      shapes.push({
+      let textAlign: "start" | "middle" | "end" = "start";
+      if (el.textAlign === "center") textAlign = "middle";
+      else if (el.textAlign === "right") textAlign = "end";
+
+      storeDict[shapeId] = {
         id: shapeId,
         typeName: "shape",
         type: "text",
@@ -112,23 +142,23 @@ export function convertExcalidrawToTldraw(elements: ExcalidrawElement[]): any {
         parentId: "page:page",
         isLocked: el.locked || false,
         opacity,
+        meta: {},
         props: {
+          ...defaultTextProps,
           color,
           size: (el.fontSize || 16) > 24 ? "l" : (el.fontSize || 16) > 18 ? "m" : "s",
-          font: "draw",
-          textAlign: el.textAlign || "start",
-          w: Math.max(20, el.width),
-          text: el.text || "",
-          scale: 1,
-          autoSize: false
+          textAlign,
+          w: Math.max(30, el.width),
+          autoSize: false,
+          richText: makeRichText(el.text || "")
         }
-      });
+      };
     } else if (el.type === "arrow" || el.type === "line") {
       const pts = el.points || [[0, 0], [el.width, el.height]];
       const startPt = pts[0] || [0, 0];
       const endPt = pts[pts.length - 1] || [el.width, el.height];
 
-      shapes.push({
+      storeDict[shapeId] = {
         id: shapeId,
         typeName: "shape",
         type: "arrow",
@@ -139,58 +169,23 @@ export function convertExcalidrawToTldraw(elements: ExcalidrawElement[]): any {
         parentId: "page:page",
         isLocked: el.locked || false,
         opacity,
+        meta: {},
         props: {
+          ...defaultArrowProps,
           color,
-          fill: "none",
           dash: el.strokeStyle === "dashed" ? "dashed" : "draw",
-          size: "m",
-          start: { type: "point", x: 0, y: 0 },
-          end: { type: "point", x: endPt[0] - startPt[0], y: endPt[1] - startPt[1] },
+          start: { x: 0, y: 0 },
+          end: { x: endPt[0] - startPt[0], y: endPt[1] - startPt[1] },
           arrowheadStart: el.startArrowhead ? "arrow" : "none",
           arrowheadEnd: el.endArrowhead ? "arrow" : el.type === "arrow" ? "arrow" : "none",
-          text: el.text || "",
-          labelPosition: 0.5,
-          font: "draw"
+          richText: makeRichText(el.text || "")
         }
-      });
+      };
     }
   });
 
   return {
-    tldrawFileFormatVersion: 1,
-    schema: {
-      schemaVersion: 2,
-      sequences: {
-        "com.tldraw.store": 4,
-        "com.tldraw.asset": 1,
-        "com.tldraw.camera": 1,
-        "com.tldraw.document": 2,
-        "com.tldraw.instance": 25,
-        "com.tldraw.instance_page_state": 5,
-        "com.tldraw.page": 1,
-        "com.tldraw.shape": 4,
-        "com.tldraw.shape.geo": 9,
-        "com.tldraw.shape.text": 2,
-        "com.tldraw.shape.arrow": 5,
-        "com.tldraw.shape.line": 1
-      }
-    },
-    records: [
-      {
-        gridSize: 10,
-        name: "",
-        meta: {},
-        id: "document:document",
-        typeName: "document"
-      },
-      {
-        id: "page:page",
-        name: "Page 1",
-        index: "a1",
-        meta: {},
-        typeName: "page"
-      },
-      ...shapes
-    ]
+    schema: storeInstance.schema.serialize(),
+    store: storeDict
   };
 }

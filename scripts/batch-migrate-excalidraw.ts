@@ -85,11 +85,12 @@ async function main() {
     const localDestPath = path.join(path.dirname(file), `${baseName}.tldr`);
     fs.writeFileSync(localDestPath, JSON.stringify(tldrawDoc, null, 2), "utf-8");
 
-    console.log(`✓ Converted: ${baseName} (${elements.length} elements ➔ ${tldrawDoc.records.length} records)`);
+    console.log(`✓ Converted: ${baseName} (${elements.length} elements ➔ ${Object.keys(tldrawDoc.store).length} records)`);
     successCount++;
   }
 
   console.log(`\n🎉 Migration Complete: ${successCount} / ${files.length} files successfully converted to .tldr!`);
+  process.exit(0);
 }
 
 main().catch(console.error);
