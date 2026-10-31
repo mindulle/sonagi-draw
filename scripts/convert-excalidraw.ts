@@ -147,6 +147,7 @@ export function convertExcalidrawToTldraw(elements: ExcalidrawElement[]): any {
           ...defaultTextProps,
           color,
           size: (el.fontSize || 16) > 24 ? "l" : (el.fontSize || 16) > 18 ? "m" : "s",
+          font: el.fontFamily === 1 ? "draw" : "sans",
           textAlign,
           w: Math.max(30, el.width),
           autoSize: false,

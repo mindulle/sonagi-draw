@@ -868,12 +868,14 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     )
 }
 
+const baseUrl = window.location.pathname.startsWith('/draw') ? `${window.location.origin}/draw` : window.location.origin;
+
 const customAssetUrls = {
     fonts: {
-        tldraw_draw: `${window.location.origin}/fonts/NanumPen.woff2`,
-        tldraw_sans: `${window.location.origin}/fonts/Pretendard.woff2`,
-        tldraw_serif: `${window.location.origin}/fonts/GowunBatang.woff2`,
-        tldraw_mono: `${window.location.origin}/fonts/D2Coding.woff2`
+        tldraw_draw: `${baseUrl}/fonts/NanumPen.woff2`,
+        tldraw_sans: `${baseUrl}/fonts/Pretendard.woff2`,
+        tldraw_serif: `${baseUrl}/fonts/GowunBatang.woff2`,
+        tldraw_mono: `${baseUrl}/fonts/D2Coding.woff2`
     }
 }
 
