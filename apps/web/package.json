@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.5.0",
+    "@mindulle/ui": "file:./vendor/mindulle-ui.tgz",
     "@sentry/react": "^10.66.0",
+    "@sonagi/tokens": "file:./vendor/mindulle-tokens.tgz",
     "@sonagi-draw/schema": "workspace:*",
     "@tldraw/assets": "^5.6.0",
     "@tldraw/sync": "^5.3.0",
