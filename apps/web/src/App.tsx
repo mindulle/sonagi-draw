@@ -10,6 +10,8 @@ import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 import { CustomMainMenu } from "./CustomMainMenu"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
+import { DiscordSDK } from '@discord/embedded-app-sdk'
+import { getAssetUrls } from '@tldraw/assets/selfHosted'
 import DOMPurify from 'dompurify'
 import { WiredProgressShapeUtil } from './WiredProgressShape'
 import { WiredDataTableShapeUtil } from './WiredDataTableShape'
@@ -674,6 +676,20 @@ function App() {
             setIsDiscord(true)
         }
 
+        if (instanceId) {
+            try {
+                const discordSdk = new DiscordSDK("1436611660713300048")
+                discordSdk.ready().then(() => {
+                    console.log("[Sonagi Activity] Discord SDK native ready() succeeded!")
+                    ;(window as any).__DISCORD_SDK__ = discordSdk
+                }).catch(err => {
+                    console.log("[Sonagi Activity] Discord SDK ready() catch:", err)
+                })
+            } catch (err) {
+                console.log("[Sonagi Activity] Discord SDK init catch:", err)
+            }
+        }
+
         if (room !== null) {
             setMode('room')
             setTargetRoom(room || generateRoomId())
@@ -958,8 +974,12 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
 const baseUrl = window.location.pathname.startsWith('/draw') ? `${window.location.origin}/draw` : window.location.origin;
 
+const defaultAssets = getAssetUrls({ baseUrl: `${baseUrl}/tldraw-assets/` });
+
 const customAssetUrls = {
+    ...defaultAssets,
     fonts: {
+        ...defaultAssets.fonts,
         tldraw_draw: `${baseUrl}/fonts/KyoboHandwriting2023.woff`,
         tldraw_sans: `${baseUrl}/fonts/Pretendard.woff2`,
         tldraw_serif: `${baseUrl}/fonts/GowunBatang.woff2`,
@@ -971,12 +991,12 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
      const storeSync = useSync({
 		uri: `${WORKER_URL}/connect/${roomId}`,
         assets: multiplayerAssets,
-        shapeUtils: allShapeUtils
+        shapeUtils: allShapeUtils as any
 	})
 
     return (
         <div style={{ width: '100%', height: '100%' }}>
-            <Tldraw store={storeSync} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
+            <Tldraw store={storeSync as any} components={{ MainMenu: CustomMainMenu, SharePanel: () => null, InFrontOfTheCanvas: () => <InFrontWrapper roomId={roomId} /> }} 
                 assetUrls={customAssetUrls}
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
