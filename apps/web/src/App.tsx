@@ -661,11 +661,17 @@ function App() {
 	const [mode, setMode] = useState<'room' | 'file'>('file')
 	const [targetRoom, setTargetRoom] = useState<string | null>(null)
 	const [initialFile, setInitialFile] = useState<string | null>(null)
+	const [isDiscord, setIsDiscord] = useState(false)
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search)
         const room = urlParams.get('room')
         const file = urlParams.get('file')
+        const instanceId = urlParams.get('instance_id')
+
+        if (instanceId || window.location.pathname.startsWith('/draw')) {
+            setIsDiscord(true)
+        }
 
         if (room !== null) {
             setMode('room')
@@ -677,7 +683,7 @@ function App() {
     }, [])
 
 	return (
-        <div style={{ position: 'fixed', inset: 0 }}>
+        <div style={{ position: 'fixed', top: isDiscord ? 48 : 0, left: 0, right: 0, bottom: 0 }}>
             {mode === 'room' && targetRoom ? (
                 <TldrawWrapper roomId={targetRoom} />
             ) : (
@@ -721,9 +727,6 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             .then(snapshot => {
                 editor.loadSnapshot(snapshot)
                 setSaveStatus('saved')
-                const newUrl = new URL(window.location.href)
-                newUrl.searchParams.set('file', currentFile)
-                window.history.replaceState({}, '', newUrl.toString())
                 setTimeout(() => {
                     try {
                         editor.zoomToFit({ animation: { duration: 250 } })
