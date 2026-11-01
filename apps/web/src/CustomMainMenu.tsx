@@ -201,6 +201,18 @@ const toRichText = (text: string) => {
                 />
             </TldrawUiMenuGroup>
             {/* @ts-expect-error React 18 type mismatch */}
+            <TldrawUiMenuGroup id="portal-navigation">
+                <TldrawUiMenuItem
+                    id="open-design-portal"
+                    label="🏛️ 디자인 시스템 포털 (design.sonagi.space)..."
+                    icon="external-link"
+                    readonlyOk={true}
+                    onSelect={() => {
+                        window.open('https://design.sonagi.space', '_blank')
+                    }}
+                />
+            </TldrawUiMenuGroup>
+            {/* @ts-expect-error React 18 type mismatch */}
             <TldrawUiMenuGroup id="custom-templates">
                 <TldrawUiMenuItem
                     id="open-asset-drawer"
