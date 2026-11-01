@@ -2,6 +2,9 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { DiscordSDK } from '@discord/embedded-app-sdk'
+import { initClientDiagnostics } from './diagnostics'
+
+initClientDiagnostics()
 
 async function init() {
   const params = new URLSearchParams(window.location.search)
