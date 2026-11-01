@@ -24,10 +24,11 @@ mcp = FastMCP("sonagi-draw-mcp")
 # (Playwright + 실제 window.editor API)를 통해 안전하게 기록/조회합니다.
 DB_DIR = "/home/ubuntu/sonagi-draw-prod/.rooms"
 TEMPLATE_DIR = "/home/ubuntu/sonagi-draw-prod/.templates"
+DRAWINGS_DIR = "/home/ubuntu/llm-wiki/03_Resources/Drawings"
 
 # canvas_bridge.mjs 위치 및 배포된 화이트보드 URL (Nginx 프록시 경유)
 BRIDGE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bridge", "canvas_bridge.mjs")
-DRAW_BASE_URL = "https://draw.sonagi.space"
+DRAW_BASE_URL = os.environ.get("DRAW_BASE_URL", "http://127.0.0.1:3550/draw")
 
 # MinIO (CDN) 클라이언트 설정
 s3_client = boto3.client(
@@ -62,6 +63,14 @@ def upload_image_to_cdn(image_url: str) -> str:
     except Exception as e:
         print(f"[CDN Upload Error] {image_url} -> {e}")
         return image_url
+
+def drawing_exists(identifier: str) -> bool:
+    clean = identifier.replace(".tldr", "").replace(".db", "").strip()
+    tldr_path = os.path.join(DRAWINGS_DIR, f"{clean}.tldr")
+    if os.path.exists(tldr_path):
+        return True
+    db_path = os.path.join(DB_DIR, f"{clean}.db")
+    return os.path.exists(db_path)
 
 def get_db_path(room_id: str) -> str:
     return os.path.join(DB_DIR, f"{room_id}.db")
@@ -108,55 +117,48 @@ def init_db(db_path: str, template_name: str = "default"):
 @mcp.tool()
 def create_room(title: str, issue_id: Optional[str] = None, template_name: str = "default") -> str:
     """
-    신규 tldraw 방을 생성하고 3개의 멀티 페이지(Moodboard, Wireframe, User Journey)를 기본 세팅합니다.
+    신규 tldraw 도면(.tldr)을 생성하고 3개의 멀티 페이지(Moodboard, Wireframe, User Journey)를 기본 세팅합니다.
     template_name을 지정하여 특정 템플릿 기반으로 생성할 수 있습니다.
     """
-    os.makedirs(DB_DIR, exist_ok=True)
-    room_id = uuid.uuid4().hex[:8]
-    db_path = get_db_path(room_id)
+    safe_title = "".join(c for c in title if c.isalnum() or c in "-_ ").strip().replace(" ", "_")
+    if not safe_title:
+        safe_title = f"Drawing_{uuid.uuid4().hex[:8]}"
 
-    # 템플릿 DB를 그대로 복사하는 것은 순수 파일 복사라 안전함 (fractional index 검증과 무관).
+    # 1. 파일 기반 저장소(llm-wiki)에 신규 .tldr 도면 생성
+    try:
+        httpx.post("http://127.0.0.1:3550/api/drawings/new", json={"name": safe_title}, timeout=5.0)
+    except Exception as e:
+        print(f"[create_room] drawings API warning: {e}")
+
+    # 2. 하위 호환성을 위해 로컬 DB 템플릿도 복사
+    os.makedirs(DB_DIR, exist_ok=True)
+    db_path = get_db_path(safe_title)
     init_db(db_path, template_name)
 
-    room_url = f"https://draw.sonagi.space/?room={room_id}"
+    room_url = f"https://activity.sonagi.space/draw/?file={safe_title}"
 
     if template_name == "default":
-        # CEO-933: 예전에는 여기서 add_shape_to_db로 SQLite에 직접 타이틀/와이어프레임
-        # 키트/유저 저니 도형을 써넣었음. 이 로컬 DB 미러는 실제 프로덕션 sync-server와
-        # 동기화되지 않는다는 사실이 get_room_state 수정 때 이미 확인됐고(Syncthing이
-        # 이 경로를 관리하지 않음), 설령 동기화되더라도 c001/c002 같은 자체 카운터
-        # 기반 index는 tldraw의 실제 fractional-indexing 포맷이 아니라서 실제 클라이언트가
-        # 접속했을 때 스토어 검증에 실패해 sync-server를 무한 재시작 크래시에 빠뜨렸음.
-        # 이제 canvas_bridge.mjs(Playwright + 실제 window.editor API)가 새 방에
-        # 3개 탭을 만들고(page:page는 tldraw가 항상 만들어주는 기본 페이지를 재사용/이름변경,
-        # page:wireframe/page:journey는 editor.createPage()로 신규 생성) 도형을
-        # editor.createShapes()로 채워 넣으므로 항상 유효한 상태만 기록됩니다.
         args = {
             "action": "create_room_content",
             "baseUrl": DRAW_BASE_URL,
-            "roomId": room_id,
+            "file": safe_title,
             "title": title,
             "issueId": issue_id,
         }
         error = _run_bridge_or_none(args)
         if error:
-            return f"⚠️ 방은 생성되었으나 초기 콘텐츠 주입 중 오류가 발생했습니다: {error}\n방 URL: {room_url}"
+            return f"⚠️ 도면은 생성되었으나 초기 콘텐츠 주입 중 오류가 발생했습니다: {error}\n도면 URL: {room_url}"
 
-    return f"✅ 방 생성 완료: {room_url}"
+    return f"✅ 도면 생성 완료: {room_url}"
 
 @mcp.tool()
 def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: List[str], rules: str) -> str:
     """
     [Phase 1] 이미지 배열, 컬러 팔레트, 텍스트 규칙을 tldraw 캔버스에 시각적으로 정렬하여 렌더링합니다.
     """
-    if not room_id or not all(c.isalnum() or c in "-_" for c in room_id):
-        return "❌ 오류: 올바르지 않은 Room ID 형식입니다."
-
-    db_path = get_db_path(room_id)
-    if not os.path.exists(db_path):
+    if not drawing_exists(room_id):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
 
-    # 이미지 그리드 좌표 계산 및 CDN 업로드(핫링크 방어)는 SQL과 무관하므로 그대로 Python에서 수행.
     start_x, start_y = 100, 200
     gap = 20
     img_w, img_h = 300, 300
@@ -173,12 +175,10 @@ def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: 
             "x": x, "y": y, "w": img_w, "h": img_h,
         })
 
-    # CEO-933: 텍스트/팔레트/이미지 도형 생성을 add_shape_to_db(raw SQL) 대신
-    # canvas_bridge.mjs를 통해 실제 window.editor API로 안전하게 수행합니다.
     args = {
         "action": "generate_moodboard_layout",
         "baseUrl": DRAW_BASE_URL,
-        "roomId": room_id,
+        "file": room_id,
         "pageId": "page:page",
         "rules": rules,
         "paletteHex": palette_hex,
@@ -191,25 +191,18 @@ def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: 
     return f"✅ 무드보드 레이아웃 완료 (Images: {len(image_urls)}, Palette: {len(palette_hex)})"
 
 @mcp.tool()
-def add_sticky_note(room_id: str, text: str, x: float, y: float, color: str = "yellow", page_id: str = "page:wireframe") -> str:
+def add_sticky_note(room_id: str, text: str, x: float = 100, y: float = 100, color: str = "yellow", page_id: str = "page:page") -> str:
     """
     [Phase 3] 캔버스 특정 위치에 피드백이나 코멘트를 남길 수 있는 포스트잇(Sticky Note)을 붙입니다.
     color는 tldraw 지원 색상(yellow, blue, green, red, black, white 등) 중 하나여야 합니다.
     """
-    if not room_id or not all(c.isalnum() or c in "-_" for c in room_id):
-        return "❌ 오류: 올바르지 않은 Room ID 형식입니다."
-
-    db_path = get_db_path(room_id)
-    if not os.path.exists(db_path):
+    if not drawing_exists(room_id):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
 
-    # CEO-933: routed through canvas_bridge.mjs (real window.editor API) instead
-    # of add_shape_to_db's raw SQL INSERT, which could write shapes with
-    # non-conformant fractional indices and crash sync-server on load.
     args = {
         "action": "add_sticky_note",
         "baseUrl": DRAW_BASE_URL,
-        "roomId": room_id,
+        "file": room_id,
         "pageId": page_id,
         "text": text,
         "x": x,
@@ -219,26 +212,21 @@ def add_sticky_note(room_id: str, text: str, x: float, y: float, color: str = "y
     return _run_bridge(args)
 
 @mcp.tool()
-def add_wireframe_box(room_id: str, x: float, y: float, w: float, h: float, text: str = "", page_id: str = "page:wireframe") -> str:
+def add_wireframe_box(room_id: str, x: float, y: float, w: float, h: float, text: str = "", page_id: str = "page:page") -> str:
     """
     캔버스의 특정 페이지에 기본적인 와이어프레임 박스(회색 윤곽선)를 그립니다. (UI/UX 뼈대 잡기용)
     선택적으로 박스 중앙에 들어갈 텍스트(예: "네비게이션", "메인 버튼")를 지정할 수 있습니다.
     """
-    if not room_id or not all(c.isalnum() or c in "-_" for c in room_id):
-        return "❌ 오류: 올바르지 않은 Room ID 형식입니다."
-
     if w <= 0 or h <= 0:
         return "❌ 오류: 와이어프레임 박스의 너비(w)와 높이(h)는 0보다 커야 합니다."
 
-    db_path = get_db_path(room_id)
-    if not os.path.exists(db_path):
+    if not drawing_exists(room_id):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
 
-    # CEO-933: routed through canvas_bridge.mjs, see add_sticky_note above.
     args = {
         "action": "add_wireframe_box",
         "baseUrl": DRAW_BASE_URL,
-        "roomId": room_id,
+        "file": room_id,
         "pageId": page_id,
         "x": x,
         "y": y,
@@ -265,6 +253,7 @@ def get_room_state(room_id: str, page_id: Optional[str] = None) -> Dict[str, Any
         "action": "get_room_state",
         "baseUrl": DRAW_BASE_URL,
         "roomId": room_id,
+        "file": room_id,
         "pageId": page_id,
     }
     result_json = _run_bridge(args)
@@ -361,6 +350,7 @@ def push_to_inbox(room_id: str, title: Optional[str] = None, items: Optional[Lis
         "action": "push_to_inbox",
         "baseUrl": DRAW_BASE_URL,
         "roomId": room_id,
+        "file": room_id,
         "pageName": page_name,
         "title": title,
         "items": items,
@@ -379,6 +369,7 @@ def get_page_shapes_live(room_id: str, page_name: Optional[str] = None) -> Dict[
         "action": "get_page_shapes",
         "baseUrl": DRAW_BASE_URL,
         "roomId": room_id,
+        "file": room_id,
         "pageName": page_name,
     }
     result = json.loads(_run_bridge(args))
