@@ -377,7 +377,22 @@ def get_page_shapes_live(room_id: str, page_name: Optional[str] = None) -> Dict[
 
 
 def _run_bridge(args: Dict[str, Any]) -> str:
-    """canvas_bridge.mjs (Playwright + window.editor)를 서브프로세스로 실행하고 결과를 반환합니다."""
+    """Local API Bridge (Fast Path)를 먼저 시도하고, 실패 시 Playwright canvas_bridge.mjs로 Fallback합니다."""
+    # 1. Fast Path: Local API Bridge (10ms)
+    try:
+        bridge_url = os.environ.get("LOCAL_BRIDGE_URL", "http://127.0.0.1:5858/api/bridge/execute")
+        resp = httpx.post(bridge_url, json=args, timeout=3.5)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("ok"):
+                return json.dumps(data, ensure_ascii=False)
+            elif "error" in data:
+                print(f"[Local Bridge] Error from bridge: {data.get('error')}, falling back to Playwright")
+    except Exception as e:
+        # Local bridge unavailable or timeout; fallback to Playwright
+        pass
+
+    # 2. Slow Fallback: canvas_bridge.mjs (Playwright + window.editor)
     import subprocess
     import tempfile
 

@@ -41,6 +41,29 @@ async function main() {
 	const { action, roomId, file, baseUrl = DEFAULT_BASE_URL } = args
 	const targetIdentifier = file || roomId
 
+	// Fast Path: Try Local API Bridge first (10ms)
+	try {
+		const bridgeUrl = process.env.LOCAL_BRIDGE_URL || 'http://127.0.0.1:5858/api/bridge/execute'
+		const controller = new AbortController()
+		const timer = setTimeout(() => controller.abort(), 2500)
+		const bridgeRes = await fetch(bridgeUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(args),
+			signal: controller.signal,
+		})
+		clearTimeout(timer)
+		if (bridgeRes.ok) {
+			const data = await bridgeRes.json()
+			if (data && data.ok) {
+				console.log(JSON.stringify(data))
+				return
+			}
+		}
+	} catch (_) {
+		// Fallback to Playwright
+	}
+
 	const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 	const page = await browser.newPage()
 
