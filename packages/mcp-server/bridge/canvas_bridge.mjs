@@ -30,7 +30,7 @@
 import { chromium } from 'playwright'
 import { readFileSync } from 'fs'
 
-const DEFAULT_BASE_URL = 'https://draw.sonagi.space'
+const DEFAULT_BASE_URL = process.env.DRAW_BASE_URL || 'http://127.0.0.1:3550/draw'
 
 async function main() {
 	const argsPath = process.argv[2]
@@ -38,8 +38,8 @@ async function main() {
 		throw new Error('Usage: node canvas_bridge.mjs <path-to-args.json>')
 	}
 	const args = JSON.parse(readFileSync(argsPath, 'utf-8'))
-	const { action, roomId, baseUrl = DEFAULT_BASE_URL } = args
-	if (!roomId) throw new Error('roomId is required')
+	const { action, roomId, file, baseUrl = DEFAULT_BASE_URL } = args
+	const targetIdentifier = file || roomId
 
 	const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 	const page = await browser.newPage()
@@ -48,7 +48,12 @@ async function main() {
 	page.on('pageerror', (err) => pageErrors.push(err.message))
 
 	try {
-		await page.goto(`${baseUrl}/?room=${encodeURIComponent(roomId)}`, {
+		const cleanBase = baseUrl.replace(/\/$/, '')
+		const targetUrl = targetIdentifier
+			? `${cleanBase}/?file=${encodeURIComponent(targetIdentifier)}`
+			: `${cleanBase}/`
+
+		await page.goto(targetUrl, {
 			waitUntil: 'networkidle',
 			timeout: 30000,
 		})
@@ -81,13 +86,10 @@ async function main() {
 				throw new Error(`Unknown action: ${action}`)
 		}
 
-		// The tldraw sync client sends store changes to the server over the
-		// WebSocket asynchronously; editor.createShapes()/updateShapes() return
-		// before that message has necessarily been flushed. Without this wait,
-		// closing the browser right after a mutation can drop the shape entirely
-		// (verified: get_page_shapes right after add_wireframe_box/add_sticky_note
-		// showed 0 shapes without this delay, vs. correctly showing them with it).
-		await page.waitForTimeout(1000)
+		// The tldraw client sends store changes to /api/drawings via a 2000ms debounce
+		// auto-save timer. We wait 2600ms so that the debounced POST /api/drawings has
+		// completed and persisted the updated snapshot to disk before closing the browser.
+		await page.waitForTimeout(2600)
 
 		if (pageErrors.length > 0) {
 			// Any uncaught error thrown inside the page during our operation means
