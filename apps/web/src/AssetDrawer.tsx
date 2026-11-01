@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createShapeId } from 'tldraw'
 import {
     insertLayoutComponent,
@@ -24,6 +24,24 @@ interface UIItem {
     action: (editor: any) => void
 }
 
+export interface KarakeepBookmark {
+    id: string
+    title: string
+    archived?: boolean
+    favourited?: boolean
+    tags?: Array<{ id: string; name: string }>
+    content?: {
+        type?: string
+        url?: string
+        title?: string
+        description?: string | null
+        imageUrl?: string | null
+        favicon?: string | null
+        imageAssetId?: string | null
+        screenshotAssetId?: string | null
+    }
+}
+
 export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: AssetDrawerProps) {
     const [activeTab, setActiveTab] = useState<'ui' | 'tokens' | 'reference' | 'vector'>('ui')
     const [searchQuery, setSearchQuery] = useState('')
@@ -31,6 +49,15 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
     const [statusMessage, setStatusMessage] = useState<string | null>(null)
     const [touchStartX, setTouchStartX] = useState<number | null>(null)
     const [touchStartY, setTouchStartY] = useState<number | null>(null)
+
+    // Karakeep Bookmarks Real-Time State (DRAW-14)
+    const [bookmarks, setBookmarks] = useState<KarakeepBookmark[]>([])
+    const [isLoadingBookmarks, setIsLoadingBookmarks] = useState(false)
+    const [bookmarkError, setBookmarkError] = useState<string | null>(null)
+    const [bookmarkSearch, setBookmarkSearch] = useState('')
+    const [hasFetchedBookmarks, setHasFetchedBookmarks] = useState(false)
+    const [selectedTag, setSelectedTag] = useState<string | null>(null)
+    const [showPresets, setShowPresets] = useState(false)
 
     const showToast = (msg: string) => {
         setStatusMessage(msg)
@@ -46,6 +73,112 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
             setTimeout(onClose, 260)
         }
     }
+
+    // Karakeep Bookmarks Fetcher (DRAW-14)
+    const fetchBookmarks = async (query = '') => {
+        setIsLoadingBookmarks(true)
+        setBookmarkError(null)
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 6000)
+
+        try {
+            const url = new URL('/api/karakeep/bookmarks', window.location.origin)
+            if (query.trim()) url.searchParams.set('q', query.trim())
+            url.searchParams.set('limit', '40')
+
+            const res = await fetch(url.toString(), { signal: controller.signal })
+            clearTimeout(timeoutId)
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+            }
+
+            const data = await res.json()
+            if (data.ok && Array.isArray(data.bookmarks)) {
+                setBookmarks(data.bookmarks)
+                setHasFetchedBookmarks(true)
+            } else {
+                throw new Error(data.error || '북마크 데이터를 불러올 수 없습니다')
+            }
+        } catch (err: any) {
+            clearTimeout(timeoutId)
+            console.warn('Karakeep bookmarks fetch failed, falling back to static presets:', err)
+            setBookmarkError(err.name === 'AbortError' ? '요청 시간이 초과되었습니다 (6초)' : 'Karakeep 서버에 연결할 수 없습니다')
+        } finally {
+            setIsLoadingBookmarks(false)
+        }
+    }
+
+    // Auto-fetch bookmarks once when user switches to reference tab
+    useEffect(() => {
+        if (activeTab === 'reference' && !hasFetchedBookmarks && !isLoadingBookmarks) {
+            fetchBookmarks('')
+        }
+    }, [activeTab, hasFetchedBookmarks, isLoadingBookmarks])
+
+    // Debounced remote search
+    useEffect(() => {
+        if (activeTab !== 'reference' || !hasFetchedBookmarks) return
+        const timer = setTimeout(() => {
+            fetchBookmarks(bookmarkSearch)
+        }, 350)
+        return () => clearTimeout(timer)
+    }, [bookmarkSearch])
+
+    // Stamp Karakeep bookmark as wired-reference-card
+    const handleInsertBookmark = (bm: KarakeepBookmark) => {
+        if (!editor) return
+        const center = editor.getViewportPageBounds().center
+        const id = createShapeId()
+        const title = bm.title || bm.content?.title || '레퍼런스 북마크'
+        const url = bm.content?.url || ''
+        const imageUrl = bm.content?.imageUrl || bm.content?.favicon || ''
+
+        editor.createShapes([
+            {
+                id,
+                type: 'wired-reference-card',
+                x: center.x - 160,
+                y: center.y - 120,
+                props: {
+                    w: 320,
+                    h: 240,
+                    title,
+                    url,
+                    imageUrl
+                }
+            }
+        ])
+        editor.select(id)
+        showToast(`'${title}' 레퍼런스 카드 배치됨!`)
+        if (typeof window !== 'undefined' && window.innerWidth < 640) {
+            setTimeout(onClose, 260)
+        }
+    }
+
+    // Tag list for filtering
+    const availableTags = useMemo(() => {
+        const tagCountMap = new Map<string, number>()
+        for (const bm of bookmarks) {
+            for (const t of bm.tags || []) {
+                tagCountMap.set(t.name, (tagCountMap.get(t.name) || 0) + 1)
+            }
+        }
+        return Array.from(tagCountMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([name]) => name)
+    }, [bookmarks])
+
+    // Filtered bookmarks by selected tag
+    const filteredBookmarks = useMemo(() => {
+        let list = bookmarks
+        if (selectedTag) {
+            list = list.filter(bm => bm.tags?.some(t => t.name === selectedTag))
+        }
+        return list
+    }, [bookmarks, selectedTag])
 
     // UI Kit items
     const uiItems: UIItem[] = useMemo(() => [
@@ -752,39 +885,339 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                         </div>
                     )}
 
-                    {/* Tab 3: Reference & Moodboard */}
+                    {/* Tab 3: Reference & Moodboard (DRAW-14 Karakeep Real-Time Sync) */}
                     {activeTab === 'reference' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-                                Karakeep 북마크 및 비주얼 레퍼런스 카드를 캔버스에 배치합니다.
-                            </p>
-                            {referencePresets.map((item, idx) => (
-                                <div
-                                    key={idx}
-                                    onClick={() => handleInsert(item.action, item.title)}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {/* Search and refresh header */}
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <input
+                                    type="text"
+                                    placeholder="🔍 북마크 검색 (예: Linear, auth, mobile)..."
+                                    value={bookmarkSearch}
+                                    onChange={(e) => setBookmarkSearch(e.target.value)}
                                     style={{
-                                        padding: '12px',
+                                        flex: 1,
+                                        padding: '8px 12px',
                                         borderRadius: 8,
-                                        border: '1px solid #e2e8f0',
-                                        background: '#ffffff',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: 12,
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                                {bookmarkSearch && (
+                                    <button
+                                        onClick={() => setBookmarkSearch('')}
+                                        style={{
+                                            border: '1px solid #cbd5e1',
+                                            background: '#f8fafc',
+                                            borderRadius: 8,
+                                            padding: '8px 10px',
+                                            cursor: 'pointer',
+                                            fontSize: 12,
+                                            color: '#64748b'
+                                        }}
+                                        title="검색어 지우기"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => fetchBookmarks(bookmarkSearch)}
+                                    disabled={isLoadingBookmarks}
+                                    style={{
+                                        border: '1px solid #cbd5e1',
+                                        background: isLoadingBookmarks ? '#f1f5f9' : '#ffffff',
+                                        borderRadius: 8,
+                                        padding: '8px 10px',
+                                        cursor: isLoadingBookmarks ? 'default' : 'pointer',
+                                        fontSize: 12,
+                                        color: '#334155',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: 12,
-                                        cursor: 'pointer'
+                                        gap: 4
+                                    }}
+                                    title="Karakeep 북마크 새로고침"
+                                >
+                                    <span>🔄</span>
+                                </button>
+                            </div>
+
+                            {/* Tag filter pills */}
+                            {availableTags.length > 0 && !bookmarkError && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                                    <button
+                                        onClick={() => setSelectedTag(null)}
+                                        style={{
+                                            padding: '3px 8px',
+                                            borderRadius: 12,
+                                            border: selectedTag === null ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                            background: selectedTag === null ? '#eff6ff' : '#ffffff',
+                                            color: selectedTag === null ? '#1d4ed8' : '#64748b',
+                                            fontSize: 11,
+                                            fontWeight: selectedTag === null ? 700 : 500,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        전체 ({bookmarks.length})
+                                    </button>
+                                    {availableTags.map(tag => (
+                                        <button
+                                            key={tag}
+                                            onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                                            style={{
+                                                padding: '3px 8px',
+                                                borderRadius: 12,
+                                                border: selectedTag === tag ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                                background: selectedTag === tag ? '#eff6ff' : '#ffffff',
+                                                color: selectedTag === tag ? '#1d4ed8' : '#64748b',
+                                                fontSize: 11,
+                                                fontWeight: selectedTag === tag ? 700 : 500,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            #{tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Error / Offline Fallback Notice */}
+                            {bookmarkError && (
+                                <div style={{
+                                    padding: '10px 12px',
+                                    borderRadius: 8,
+                                    background: '#fffbeb',
+                                    border: '1px solid #fde68a',
+                                    color: '#92400e',
+                                    fontSize: 12,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 6
+                                }}>
+                                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span>⚠️</span>
+                                        <span>{bookmarkError}</span>
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#b45309' }}>
+                                        오프라인 기본 템플릿 카드를 사용하여 계속 작업할 수 있습니다.
+                                    </div>
+                                    <button
+                                        onClick={() => fetchBookmarks(bookmarkSearch)}
+                                        style={{
+                                            alignSelf: 'flex-start',
+                                            marginTop: 2,
+                                            padding: '4px 10px',
+                                            borderRadius: 6,
+                                            border: '1px solid #d97706',
+                                            background: '#ffffff',
+                                            color: '#b45309',
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🔄 다시 연결 시도
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Loading State */}
+                            {isLoadingBookmarks && bookmarks.length === 0 && (
+                                <div style={{
+                                    padding: '32px 16px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 10,
+                                    color: '#64748b',
+                                    fontSize: 12
+                                }}>
+                                    <span style={{ fontSize: 24 }}>⏳</span>
+                                    <span>Karakeep 북마크를 실시간으로 불러오는 중...</span>
+                                </div>
+                            )}
+
+                            {/* Real Bookmark Cards List */}
+                            {!bookmarkError && filteredBookmarks.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {filteredBookmarks.map(bm => {
+                                        const title = bm.title || bm.content?.title || '레퍼런스 북마크'
+                                        const img = bm.content?.imageUrl || bm.content?.favicon
+                                        const urlHost = bm.content?.url ? (() => {
+                                            try { return new URL(bm.content.url).hostname } catch { return bm.content.url }
+                                        })() : ''
+
+                                        return (
+                                            <div
+                                                key={bm.id}
+                                                onClick={() => handleInsertBookmark(bm)}
+                                                style={{
+                                                    padding: '10px',
+                                                    borderRadius: 8,
+                                                    border: '1px solid #e2e8f0',
+                                                    background: '#ffffff',
+                                                    display: 'flex',
+                                                    gap: 12,
+                                                    cursor: 'pointer',
+                                                    alignItems: 'center',
+                                                    transition: 'border-color 0.15s, box-shadow 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.borderColor = '#93c5fd'
+                                                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(37,99,235,0.08)'
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.borderColor = '#e2e8f0'
+                                                    e.currentTarget.style.boxShadow = 'none'
+                                                }}
+                                            >
+                                                {/* Thumbnail preview */}
+                                                <div style={{
+                                                    width: 64,
+                                                    height: 52,
+                                                    borderRadius: 6,
+                                                    background: '#f1f5f9',
+                                                    overflow: 'hidden',
+                                                    flexShrink: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    border: '1px solid #e2e8f0'
+                                                }}>
+                                                    {img ? (
+                                                        <img
+                                                            src={img}
+                                                            alt={title}
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                            onError={(e) => {
+                                                                (e.currentTarget as HTMLElement).style.display = 'none';
+                                                                const parent = e.currentTarget.parentElement
+                                                                if (parent) {
+                                                                    parent.innerHTML = '<span style="font-size: 20px">🔖</span>'
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <span style={{ fontSize: 20 }}>🔖</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Info */}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{
+                                                        fontSize: 13,
+                                                        fontWeight: 700,
+                                                        color: '#1e293b',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {title}
+                                                    </div>
+                                                    {urlHost && (
+                                                        <div style={{
+                                                            fontSize: 11,
+                                                            color: '#3b82f6',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                            marginTop: 2
+                                                        }}>
+                                                            🔗 {urlHost}
+                                                        </div>
+                                                    )}
+                                                    {bm.tags && bm.tags.length > 0 && (
+                                                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                                                            {bm.tags.slice(0, 3).map(t => (
+                                                                <span key={t.id} style={{ fontSize: 10, background: '#f1f5f9', color: '#475569', padding: '1px 5px', borderRadius: 4 }}>
+                                                                    #{t.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: 6,
+                                                    background: '#eff6ff',
+                                                    color: '#2563eb',
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    flexShrink: 0
+                                                }}>
+                                                    + 배치
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Empty search results */}
+                            {!isLoadingBookmarks && !bookmarkError && filteredBookmarks.length === 0 && bookmarks.length > 0 && (
+                                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: 12 }}>
+                                    "{bookmarkSearch}"에 일치하는 북마크가 없습니다.
+                                </div>
+                            )}
+
+                            {/* Static Presets Section (Always available as fallback or accordion) */}
+                            <div style={{
+                                marginTop: 8,
+                                borderTop: '1px solid #f1f5f9',
+                                paddingTop: 10
+                            }}>
+                                <div
+                                    onClick={() => setShowPresets(!showPresets)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        color: '#475569',
+                                        marginBottom: showPresets || bookmarkError ? 8 : 0
                                     }}
                                 >
-                                    <span style={{ fontSize: 24 }}>{item.icon}</span>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                                            {item.title}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: '#64748b' }}>
-                                            {item.desc}
-                                        </div>
-                                    </div>
-                                    <span style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>+ 배치</span>
+                                    <span>📐 기본 레퍼런스 템플릿 ({referencePresets.length}종)</span>
+                                    <span style={{ fontSize: 10 }}>{showPresets || bookmarkError ? '▼ 접기' : '▶ 펼치기'}</span>
                                 </div>
-                            ))}
+
+                                {(showPresets || bookmarkError) && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {referencePresets.map((item, idx) => (
+                                            <div
+                                                key={idx}
+                                                onClick={() => handleInsert(item.action, item.title)}
+                                                style={{
+                                                    padding: '10px 12px',
+                                                    borderRadius: 8,
+                                                    border: '1px solid #e2e8f0',
+                                                    background: '#ffffff',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 12,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <span style={{ fontSize: 22 }}>{item.icon}</span>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>
+                                                        {item.title}
+                                                    </div>
+                                                    <div style={{ fontSize: 11, color: '#64748b' }}>
+                                                        {item.desc}
+                                                    </div>
+                                                </div>
+                                                <span style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>+ 배치</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 

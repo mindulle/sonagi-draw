@@ -13,7 +13,8 @@ export default defineConfig({
         ws: true
       },
       '/library': 'http://127.0.0.1:5858',
-      '/uploads': 'http://127.0.0.1:5858'
+      '/uploads': 'http://127.0.0.1:5858',
+      '/api': 'http://127.0.0.1:5858'
     }
   },
   define: {
