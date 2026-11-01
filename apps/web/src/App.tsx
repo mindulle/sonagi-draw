@@ -11,6 +11,7 @@ import { WiredStatusBadgeShapeUtil } from './WiredStatusBadgeShape'
 import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
+import { AssetDrawer } from "./AssetDrawer"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { getAssetUrls } from '@tldraw/assets/selfHosted'
@@ -710,6 +711,7 @@ function App() {
 function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const [fileList, setFileList] = useState<string[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [activeFileName, setActiveFileName] = useState<string>(initialFile || '')
 
@@ -796,9 +798,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     useEffect(() => {
         ;(window as any).__OPEN_DRAWING_MODAL__ = () => setIsModalOpen(true)
         ;(window as any).__NEW_DRAWING_PROMPT__ = handleNewCanvas
+        ;(window as any).__OPEN_ASSET_DRAWER__ = () => setIsDrawerOpen(true)
         return () => {
             delete (window as any).__OPEN_DRAWING_MODAL__
             delete (window as any).__NEW_DRAWING_PROMPT__
+            delete (window as any).__OPEN_ASSET_DRAWER__
         }
     }, [handleNewCanvas])
 
@@ -968,6 +972,44 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                     </div>
                 </div>
             )}
+
+            {/* Subtle Collapsible Edge Trigger Handle for Asset Drawer */}
+            <button
+                onClick={() => setIsDrawerOpen(true)}
+                style={{
+                    position: 'fixed',
+                    right: 0,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 250,
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid #d1d5db',
+                    borderRight: 'none',
+                    borderTopLeftRadius: '10px',
+                    borderBottomLeftRadius: '10px',
+                    padding: '10px 8px',
+                    cursor: 'pointer',
+                    boxShadow: '-2px 2px 8px rgba(0, 0, 0, 0.08)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    transition: 'all 0.15s ease'
+                }}
+                title="에셋 & 템플릿 서랍 열기"
+            >
+                <span style={{ fontSize: 16 }}>🎨</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#4b5563', writingMode: 'vertical-rl' }}>에셋</span>
+            </button>
+
+            {/* Asset Drawer */}
+            <AssetDrawer
+                editor={editorRef.current}
+                isOpen={isDrawerOpen}
+                onClose={() => setIsDrawerOpen(false)}
+                isDiscord={window.location.pathname.startsWith('/draw')}
+            />
 
             <Tldraw
                 colorScheme="light"

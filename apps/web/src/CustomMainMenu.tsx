@@ -200,6 +200,17 @@ const toRichText = (text: string) => {
             {/* @ts-expect-error React 18 type mismatch */}
             <TldrawUiMenuGroup id="custom-templates">
                 <TldrawUiMenuItem
+                    id="open-asset-drawer"
+                    label="🎨 에셋 서랍 (UI 킷 & 토큰)..."
+                    icon="layout"
+                    readonlyOk={false}
+                    onSelect={() => {
+                        if ((window as any).__OPEN_ASSET_DRAWER__) {
+                            (window as any).__OPEN_ASSET_DRAWER__()
+                        }
+                    }}
+                />
+                <TldrawUiMenuItem
                     id="apply-4tabs"
                     label="4-Tabs 템플릿 뼈대 세팅"
                     icon="layout"
