@@ -170,6 +170,9 @@ const toRichText = (text: string) => {
         editor.centerOnPoint({x: 400, y: 400})
     }
 
+    // Expose 4-Tabs template applicator for New Drawing modal
+    ;(window as any).__APPLY_4TABS_TEMPLATE__ = apply4TabsTemplate
+
     return (
         <DefaultMainMenu>
             {/* @ts-expect-error React 18 type mismatch */}
