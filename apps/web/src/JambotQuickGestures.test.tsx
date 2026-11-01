@@ -3,6 +3,7 @@ import {
 	extractTextFromShape,
 	computeSpatialLayout,
 	executeSpatialIdeation,
+	generateClientFallbackHtml,
 	IdeatedIdea
 } from './JambotQuickGestures'
 
@@ -141,6 +142,26 @@ describe('JambotQuickGestures (DRAW-9)', () => {
 			})
 
 			expect(selectedIds).toEqual(newIds)
+		})
+	})
+
+	describe('generateClientFallbackHtml (Make Real)', () => {
+		it('renders HTML boilerplate with Tailwind CDN and components', () => {
+			const html = generateClientFallbackHtml(
+				[
+					{ type: 'wired-button', props: { text: 'Login Button' } },
+					{ type: 'wired-input', props: { placeholder: 'Username' } },
+					{ type: 'wired-card', props: { title: 'User Card' } }
+				],
+				'Auth Page Wireframe'
+			)
+
+			expect(html).toContain('<!DOCTYPE html>')
+			expect(html).toContain('https://cdn.tailwindcss.com')
+			expect(html).toContain('Login Button')
+			expect(html).toContain('Username')
+			expect(html).toContain('User Card')
+			expect(html).toContain('Auth Page Wireframe')
 		})
 	})
 })
