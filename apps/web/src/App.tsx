@@ -711,14 +711,32 @@ function App() {
 function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const [fileList, setFileList] = useState<string[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isNewModalOpen, setIsNewModalOpen] = useState(false)
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [activeFileName, setActiveFileName] = useState<string>(initialFile || '')
+
+    // New drawing modal state
+    const [newDrawingName, setNewDrawingName] = useState('')
+    const [newTemplate, setNewTemplate] = useState<'blank' | '4tabs' | 'moodboard'>('blank')
+    const [isCreating, setIsCreating] = useState(false)
+
+    // Rename state
+    const [renamingFile, setRenamingFile] = useState<string | null>(null)
+    const [renameInput, setRenameInput] = useState('')
+
+    // Toast state
+    const [toastMessage, setToastMessage] = useState<string | null>(null)
 
     const currentFileRef = useRef<string>(initialFile || '')
     const editorRef = useRef<any>(null)
     const isLoadingRef = useRef<boolean>(false)
     const autoSaveTimerRef = useRef<any>(null)
+
+    const showToast = useCallback((msg: string) => {
+        setToastMessage(msg)
+        setTimeout(() => setToastMessage(null), 2500)
+    }, [])
 
     const loadFile = useCallback((fileName: string) => {
         if (!fileName || !editorRef.current) return
@@ -774,10 +792,17 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             .catch(console.error)
     }, [loadFile])
 
-    const handleNewCanvas = useCallback(async () => {
+    const openNewModal = useCallback(() => {
         const todayStr = new Date().toISOString().slice(0, 10)
-        const rawName = window.prompt('새 캔버스 이름을 입력하세요:', `Drawing_${todayStr}`)
+        setNewDrawingName(`Drawing_${todayStr}`)
+        setNewTemplate('blank')
+        setIsNewModalOpen(true)
+    }, [])
+
+    const handleCreateDrawing = useCallback(async () => {
+        const rawName = (newDrawingName || `Drawing_${Date.now()}`).trim()
         if (!rawName) return
+        setIsCreating(true)
         try {
             const res = await fetch('/api/drawings/new', {
                 method: 'POST',
@@ -786,25 +811,118 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             })
             const data = await res.json()
             if (data.name) {
-                setFileList(prev => [data.name, ...prev])
+                setFileList(prev => [data.name, ...prev.filter(f => f !== data.name)])
                 loadFile(data.name)
+                setIsNewModalOpen(false)
+                setIsModalOpen(false)
+                showToast(`✨ 새 도면 '${data.name}'이(가) 생성되었습니다!`)
+
+                if (newTemplate === '4tabs') {
+                    setTimeout(() => {
+                        (window as any).__APPLY_4TABS_TEMPLATE__?.()
+                    }, 400)
+                }
+            } else if (data.error) {
+                alert(data.error)
             }
-        } catch (e) {
-            alert('새 캔버스 생성 실패: ' + e)
+        } catch (e: any) {
+            alert('새 도면 생성 실패: ' + e.message)
+        } finally {
+            setIsCreating(false)
         }
-    }, [loadFile])
+    }, [newDrawingName, newTemplate, loadFile, showToast])
+
+    const handleDuplicate = useCallback(async (name: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        try {
+            const res = await fetch('/api/drawings/duplicate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            })
+            const data = await res.json()
+            if (data.name) {
+                setFileList(prev => [data.name, ...prev])
+                showToast(`📑 '${name}'이(가) '${data.name}'(으)로 복제되었습니다!`)
+            }
+        } catch (e: any) {
+            alert('도면 복제 실패: ' + e.message)
+        }
+    }, [showToast])
+
+    const handleStartRename = useCallback((name: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setRenamingFile(name)
+        setRenameInput(name)
+    }, [])
+
+    const handleConfirmRename = useCallback(async (fromName: string, e?: React.MouseEvent | React.FormEvent) => {
+        if (e) e.stopPropagation()
+        const target = renameInput.trim()
+        if (!target || target === fromName) {
+            setRenamingFile(null)
+            return
+        }
+        try {
+            const res = await fetch('/api/drawings/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from: fromName, to: target })
+            })
+            const data = await res.json()
+            if (data.name) {
+                setFileList(prev => prev.map(f => f === fromName ? data.name : f))
+                if (currentFileRef.current === fromName) {
+                    currentFileRef.current = data.name
+                    setActiveFileName(data.name)
+                }
+                showToast(`✏️ 도면 이름이 '${data.name}'(으)로 변경되었습니다!`)
+            } else if (data.error) {
+                alert(data.error)
+            }
+        } catch (e: any) {
+            alert('이름 변경 실패: ' + e.message)
+        } finally {
+            setRenamingFile(null)
+        }
+    }, [renameInput, showToast])
+
+    const handleDelete = useCallback(async (name: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!window.confirm(`'${name}' 도면을 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return
+        try {
+            const res = await fetch('/api/drawings/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            })
+            const data = await res.json()
+            if (data.success) {
+                setFileList(prev => {
+                    const next = prev.filter(f => f !== name)
+                    if (currentFileRef.current === name && next.length > 0) {
+                        loadFile(next[0])
+                    }
+                    return next
+                })
+                showToast(`🗑️ '${name}' 도면이 삭제되었습니다.`)
+            }
+        } catch (e: any) {
+            alert('도면 삭제 실패: ' + e.message)
+        }
+    }, [loadFile, showToast])
 
     // Register window actions for CustomMainMenu
     useEffect(() => {
         ;(window as any).__OPEN_DRAWING_MODAL__ = () => setIsModalOpen(true)
-        ;(window as any).__NEW_DRAWING_PROMPT__ = handleNewCanvas
+        ;(window as any).__NEW_DRAWING_PROMPT__ = openNewModal
         ;(window as any).__OPEN_ASSET_DRAWER__ = () => setIsDrawerOpen(true)
         return () => {
             delete (window as any).__OPEN_DRAWING_MODAL__
             delete (window as any).__NEW_DRAWING_PROMPT__
             delete (window as any).__OPEN_ASSET_DRAWER__
         }
-    }, [handleNewCanvas])
+    }, [openNewModal])
 
     // Memoize components and assetUrls so <Tldraw> NEVER re-mounts
     const components = useMemo(() => ({
@@ -844,55 +962,359 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            {/* Modal Dialog for Opening Drawings */}
+            {/* Global Toast Notification */}
+            {toastMessage && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 16,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 999999,
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        padding: '10px 18px',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                    }}
+                >
+                    <span>✓</span>
+                    <span>{toastMessage}</span>
+                </div>
+            )}
+
+            {/* Modal Dialog for Opening & Managing Drawings */}
             {isModalOpen && (
                 <div
                     style={{
                         position: 'fixed',
                         inset: 0,
                         zIndex: 99999,
-                        background: 'rgba(0, 0, 0, 0.5)',
+                        background: 'rgba(0, 0, 0, 0.55)',
                         backdropFilter: 'blur(4px)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: 16
                     }}
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                        setIsModalOpen(false)
+                        setRenamingFile(null)
+                    }}
                 >
                     <div
                         style={{
                             background: '#ffffff',
-                            borderRadius: 12,
+                            borderRadius: 14,
                             width: '100%',
-                            maxWidth: 480,
-                            maxHeight: '80vh',
+                            maxWidth: 520,
+                            maxHeight: '82vh',
                             display: 'flex',
                             flexDirection: 'column',
-                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                            boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.25)',
                             overflow: 'hidden'
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
                         <div style={{
-                            padding: '14px 18px',
-                            borderBottom: '1px solid #eee',
+                            padding: '16px 20px',
+                            borderBottom: '1px solid #f1f5f9',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between'
+                            justifyContent: 'space-between',
+                            background: '#f8fafc'
                         }}>
-                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111' }}>
-                                📄 도면 열기 (llm-wiki)
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                                    📄 도면 보관함 (llm-wiki)
+                                </h3>
+                                <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>
+                                    총 {fileList.length}개의 도면 저장됨
+                                </p>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <button
+                                    onClick={openNewModal}
+                                    style={{
+                                        background: '#2563eb',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: 6,
+                                        padding: '6px 12px',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 4
+                                    }}
+                                >
+                                    <span>➕</span>
+                                    <span>새 도면</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsModalOpen(false)
+                                        setRenamingFile(null)
+                                    }}
+                                    style={{
+                                        border: 'none',
+                                        background: 'transparent',
+                                        fontSize: 18,
+                                        cursor: 'pointer',
+                                        color: '#94a3b8',
+                                        padding: '4px 8px'
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Search Input */}
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                            <input
+                                type="text"
+                                placeholder="도면 검색 (이름)..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    borderRadius: 6,
+                                    border: '1px solid #cbd5e1',
+                                    fontSize: 13,
+                                    outline: 'none',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+
+                        {/* File List */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {fileList
+                                .filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()))
+                                .map(name => {
+                                    const isCurrent = activeFileName === name
+                                    const isEditing = renamingFile === name
+
+                                    return (
+                                        <div
+                                            key={name}
+                                            onClick={() => {
+                                                if (!isEditing) {
+                                                    loadFile(name)
+                                                    setIsModalOpen(false)
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '10px 12px',
+                                                borderRadius: 8,
+                                                cursor: isEditing ? 'default' : 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                background: isCurrent ? '#eff6ff' : '#ffffff',
+                                                border: isCurrent ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                                                transition: 'all 0.15s ease'
+                                            }}
+                                        >
+                                            {isEditing ? (
+                                                <form
+                                                    onSubmit={(e) => handleConfirmRename(name, e)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        value={renameInput}
+                                                        onChange={(e) => setRenameInput(e.target.value)}
+                                                        autoFocus
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: '6px 10px',
+                                                            borderRadius: 6,
+                                                            border: '1px solid #3b82f6',
+                                                            fontSize: 13,
+                                                            outline: 'none'
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="submit"
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            background: '#2563eb',
+                                                            color: '#fff',
+                                                            border: 'none',
+                                                            borderRadius: 6,
+                                                            fontSize: 12,
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        저장
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setRenamingFile(null)
+                                                        }}
+                                                        style={{
+                                                            padding: '6px 8px',
+                                                            background: '#f1f5f9',
+                                                            color: '#64748b',
+                                                            border: '1px solid #cbd5e1',
+                                                            borderRadius: 6,
+                                                            fontSize: 12,
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        취소
+                                                    </button>
+                                                </form>
+                                            ) : (
+                                                <>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                                                        <span style={{ fontSize: 16 }}>📄</span>
+                                                        <span style={{
+                                                            fontSize: 13,
+                                                            fontWeight: isCurrent ? 700 : 500,
+                                                            color: isCurrent ? '#1d4ed8' : '#1e293b',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap'
+                                                        }}>
+                                                            {name}
+                                                        </span>
+                                                        {isCurrent && (
+                                                            <span style={{
+                                                                fontSize: 10,
+                                                                fontWeight: 700,
+                                                                color: '#15803d',
+                                                                background: '#dcfce7',
+                                                                padding: '2px 6px',
+                                                                borderRadius: 4,
+                                                                flexShrink: 0
+                                                            }}>
+                                                                열림 ✓
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8 }} onClick={(e) => e.stopPropagation()}>
+                                                        <button
+                                                            onClick={(e) => handleDuplicate(name, e)}
+                                                            style={{
+                                                                padding: '5px 8px',
+                                                                background: '#f8fafc',
+                                                                border: '1px solid #cbd5e1',
+                                                                borderRadius: 6,
+                                                                fontSize: 11,
+                                                                cursor: 'pointer',
+                                                                color: '#475569'
+                                                            }}
+                                                            title="도면 복제"
+                                                        >
+                                                            📑 복제
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleStartRename(name, e)}
+                                                            style={{
+                                                                padding: '5px 8px',
+                                                                background: '#f8fafc',
+                                                                border: '1px solid #cbd5e1',
+                                                                borderRadius: 6,
+                                                                fontSize: 11,
+                                                                cursor: 'pointer',
+                                                                color: '#475569'
+                                                            }}
+                                                            title="이름 변경"
+                                                        >
+                                                            ✏️ 수정
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDelete(name, e)}
+                                                            style={{
+                                                                padding: '5px 8px',
+                                                                background: '#fff1f2',
+                                                                border: '1px solid #fecdd3',
+                                                                borderRadius: 6,
+                                                                fontSize: 11,
+                                                                cursor: 'pointer',
+                                                                color: '#e11d48'
+                                                            }}
+                                                            title="도면 삭제"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Modal for Creating a New Drawing */}
+            {isNewModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 100000,
+                        background: 'rgba(0, 0, 0, 0.6)',
+                        backdropFilter: 'blur(5px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 16
+                    }}
+                    onClick={() => !isCreating && setIsNewModalOpen(false)}
+                >
+                    <div
+                        style={{
+                            background: '#ffffff',
+                            borderRadius: 14,
+                            width: '100%',
+                            maxWidth: 460,
+                            boxShadow: '0 25px 40px -5px rgba(0, 0, 0, 0.3)',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div style={{
+                            padding: '16px 20px',
+                            borderBottom: '1px solid #f1f5f9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: '#f8fafc'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span>✨</span>
+                                <span>새 도면 만들기</span>
                             </h3>
                             <button
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={() => !isCreating && setIsNewModalOpen(false)}
                                 style={{
                                     border: 'none',
                                     background: 'transparent',
                                     fontSize: 18,
                                     cursor: 'pointer',
-                                    color: '#888',
+                                    color: '#94a3b8',
                                     padding: '4px 8px'
                                 }}
                             >
@@ -900,74 +1322,136 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                             </button>
                         </div>
 
-                        {/* Search & New Button */}
-                        <div style={{ padding: '10px 16px', display: 'flex', gap: 8, borderBottom: '1px solid #f0f0f0' }}>
-                            <input
-                                type="text"
-                                placeholder="도면 검색..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{
-                                    flex: 1,
-                                    padding: '8px 12px',
-                                    borderRadius: 6,
-                                    border: '1px solid #ddd',
-                                    fontSize: 14,
-                                    outline: 'none'
-                                }}
-                            />
-                            <button
-                                onClick={() => {
-                                    setIsModalOpen(false)
-                                    handleNewCanvas()
-                                }}
-                                style={{
-                                    background: '#2f9e44',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: 6,
-                                    padding: '8px 14px',
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                ➕ 새 도면
-                            </button>
+                        {/* Body */}
+                        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {/* Input Field */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                                    도면 이름
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newDrawingName}
+                                    onChange={(e) => setNewDrawingName(e.target.value)}
+                                    placeholder="예: 신규_프로젝트_기획안"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCreateDrawing()
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 12px',
+                                        borderRadius: 8,
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: 14,
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Template Selection */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 8 }}>
+                                    스타팅 템플릿 선택
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {[
+                                        {
+                                            id: 'blank',
+                                            icon: '📄',
+                                            title: '빈 캔버스 (Blank Canvas)',
+                                            desc: '백지 상태에서 자유롭게 기획하고 그립니다.'
+                                        },
+                                        {
+                                            id: '4tabs',
+                                            icon: '📌',
+                                            title: '4-Tabs 기획 템플릿 (Full Set)',
+                                            desc: '요구사항, 유저 저니, 와이어프레임, 무드보드 4개 페이지 세팅.'
+                                        }
+                                    ].map(tmpl => {
+                                        const isSelected = newTemplate === tmpl.id
+                                        return (
+                                            <div
+                                                key={tmpl.id}
+                                                onClick={() => setNewTemplate(tmpl.id as any)}
+                                                style={{
+                                                    padding: '10px 12px',
+                                                    borderRadius: 8,
+                                                    border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                                                    background: isSelected ? '#eff6ff' : '#ffffff',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 12,
+                                                    transition: 'all 0.15s ease'
+                                                }}
+                                            >
+                                                <span style={{ fontSize: 22 }}>{tmpl.icon}</span>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#1d4ed8' : '#1e293b' }}>
+                                                        {tmpl.title}
+                                                    </div>
+                                                    <div style={{ fontSize: 11, color: '#64748b' }}>
+                                                        {tmpl.desc}
+                                                    </div>
+                                                </div>
+                                                <input
+                                                    type="radio"
+                                                    checked={isSelected}
+                                                    onChange={() => {}}
+                                                    style={{ cursor: 'pointer' }}
+                                                />
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* File List */}
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-                            {fileList
-                                .filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()))
-                                .map(name => (
-                                    <div
-                                        key={name}
-                                        onClick={() => {
-                                            loadFile(name)
-                                            setIsModalOpen(false)
-                                        }}
-                                        style={{
-                                            padding: '10px 14px',
-                                            borderRadius: 8,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            background: activeFileName === name ? '#e8f5e9' : '#f9f9f9',
-                                            fontWeight: activeFileName === name ? 700 : 500,
-                                            color: activeFileName === name ? '#2b8a3e' : '#333',
-                                            marginBottom: 6
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span>📄</span>
-                                            <span style={{ fontSize: 13 }}>{name}</span>
-                                        </div>
-                                        {activeFileName === name && <span style={{ fontSize: 12, color: '#2b8a3e' }}>열림 ✓</span>}
-                                    </div>
-                                ))}
+                        {/* Footer */}
+                        <div style={{
+                            padding: '14px 20px',
+                            background: '#f8fafc',
+                            borderTop: '1px solid #f1f5f9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 8
+                        }}>
+                            <button
+                                onClick={() => setIsNewModalOpen(false)}
+                                disabled={isCreating}
+                                style={{
+                                    padding: '8px 14px',
+                                    borderRadius: 6,
+                                    border: '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#475569',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleCreateDrawing}
+                                disabled={isCreating}
+                                style={{
+                                    padding: '8px 18px',
+                                    borderRadius: 6,
+                                    border: 'none',
+                                    background: '#2563eb',
+                                    color: '#ffffff',
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+                                }}
+                            >
+                                {isCreating ? '생성 중...' : '✨ 생성 및 열기'}
+                            </button>
                         </div>
                     </div>
                 </div>
