@@ -13,6 +13,7 @@ import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 import { CustomMainMenu } from "./CustomMainMenu"
 import { AssetDrawer } from "./AssetDrawer"
 import { JambotQuickGestures } from "./JambotQuickGestures"
+import { LocalBridgeReceiver } from "./LocalBridgeReceiver"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { getAssetUrls } from '@tldraw/assets/selfHosted'
@@ -642,6 +643,7 @@ function InFrontWrapper({ roomId }: { roomId: string }) {
     const isMobile = useIsMobile()
     return (
         <>
+            <LocalBridgeReceiver roomId={roomId} />
             <JambotQuickGestures />
             <div style={{ position: 'absolute', top: 16, left: 60, zIndex: 9999, pointerEvents: 'none' }}>
                 <SonagiLogo height={24} variant="full" />
@@ -930,7 +932,12 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const components = useMemo(() => ({
         MainMenu: CustomMainMenu,
         SharePanel: () => null,
-        InFrontOfTheCanvas: () => <JambotQuickGestures />
+        InFrontOfTheCanvas: () => (
+            <>
+                <LocalBridgeReceiver file={currentFileRef.current} />
+                <JambotQuickGestures />
+            </>
+        )
     }), [])
 
     const handleMount = useCallback((ed: any) => {

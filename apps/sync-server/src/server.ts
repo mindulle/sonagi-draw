@@ -247,6 +247,48 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 			})
 		}
 	})
+
+	// [DRAW-5] Local API Bridge for AI Agent & MCP Control
+	app.get('/api/bridge/ws', { websocket: true }, async (socket, req) => {
+		const { registerBridgeClient, isLocalhost } = await import('./bridge')
+		if (!isLocalhost(req)) {
+			socket.close(1008, 'Forbidden: Localhost only')
+			return
+		}
+		const query = (req.query as any) || {}
+		registerBridgeClient(socket, query)
+	})
+
+	app.post('/api/bridge/execute', async (req, res) => {
+		const { executeBridgeCommand, isLocalhost } = await import('./bridge')
+		const { parseRequestBody } = await import('./ai')
+		if (!isLocalhost(req)) {
+			res.status(403).send({ ok: false, error: 'Forbidden: Localhost access only' })
+			return
+		}
+		try {
+			const body = await parseRequestBody(req)
+			const result = await executeBridgeCommand(body)
+			res.send(result)
+		} catch (err: any) {
+			console.error('[Bridge Execution Error]', err)
+			res.status(500).send({ ok: false, error: err?.message || String(err) })
+		}
+	})
+
+	app.get('/api/bridge/status', async (req, res) => {
+		const { getConnectedClientsCount, getConnectedClients, isLocalhost } = await import('./bridge')
+		if (!isLocalhost(req)) {
+			res.status(403).send({ ok: false, error: 'Forbidden: Localhost access only' })
+			return
+		}
+		res.send({
+			ok: true,
+			service: 'sonagi-draw-local-bridge',
+			activeClients: getConnectedClientsCount(),
+			clients: getConnectedClients()
+		})
+	})
 })
 
 app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {
