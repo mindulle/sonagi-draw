@@ -248,6 +248,24 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 		}
 	})
 
+	// [DRAW-2] Make Real: Wireframe to Interactive HTML/Tailwind Prototype
+	app.post('/api/ai/make-real', async (req, res) => {
+		const { executeMakeReal } = await import('./makereal')
+		const { parseRequestBody } = await import('./ai')
+		try {
+			const body = await parseRequestBody(req)
+			const result = await executeMakeReal(body || {})
+			res.send(result)
+		} catch (err: any) {
+			console.error('[Make Real Error]', err)
+			res.status(500).send({
+				ok: false,
+				error: 'Failed to generate Make Real prototype',
+				details: String(err?.message || err)
+			})
+		}
+	})
+
 	// [DRAW-5] Local API Bridge for AI Agent & MCP Control
 	app.get('/api/bridge/ws', { websocket: true }, async (socket, req) => {
 		const { registerBridgeClient, isLocalhost } = await import('./bridge')
