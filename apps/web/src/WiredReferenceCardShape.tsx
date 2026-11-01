@@ -86,9 +86,40 @@ export class WiredReferenceCardShapeUtil extends ShapeUtil<WiredReferenceCardSha
                             borderRadius: '4px'
                         }}>
                             {imageUrl ? (
-                                <img src={imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
+                                <>
+                                    <img 
+                                        src={imageUrl} 
+                                        alt={title}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                        draggable={false} 
+                                        onError={(e) => {
+                                            (e.currentTarget as HTMLElement).style.display = 'none';
+                                            const fb = (e.currentTarget.nextElementSibling as HTMLElement)
+                                            if (fb) fb.style.display = 'flex'
+                                        }}
+                                    />
+                                    <div 
+                                        style={{ 
+                                            display: 'none', 
+                                            width: '100%', 
+                                            height: '100%', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center', 
+                                            flexDirection: 'column',
+                                            gap: '4px',
+                                            color: tokens["--semantic-light-color-text-muted"] || '#9ca3af', 
+                                            fontSize: '13px' 
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '24px' }}>🔖</span>
+                                        <span>Image Unavailable</span>
+                                    </div>
+                                </>
                             ) : (
-                                <span style={{ color: tokens["--semantic-light-color-text-muted"] || '#9ca3af', fontSize: '14px' }}>No Image</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: tokens["--semantic-light-color-text-muted"] || '#9ca3af', fontSize: '13px' }}>
+                                    <span style={{ fontSize: '24px' }}>🔖</span>
+                                    <span>No Image</span>
+                                </div>
                             )}
                         </div>
                         

@@ -159,6 +159,62 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 		const url = (req.query as any).url as string
 		res.send(await unfurl(url))
 	})
+
+	// Karakeep (Hoarder) Bookmarks Proxy Endpoint (DRAW-14)
+	app.get('/api/karakeep/bookmarks', async (req, res) => {
+		const query = req.query as { q?: string; limit?: string; cursor?: string }
+		const q = query.q?.trim() || ''
+		const limit = Math.min(Math.max(parseInt(query.limit || '30', 10) || 30, 1), 100)
+		const cursor = query.cursor || ''
+
+		const baseUrl = process.env.KARAKEEP_BASE_URL || 'https://ref.sonagi.space'
+		const apiKey = process.env.KARAKEEP_API_KEY || 'ak2_3dcbb951d06ccbae3823_b3732db0023eff41e015c8ea31a26a7d'
+
+		const url = new URL('/api/v1/bookmarks', baseUrl)
+		if (q) url.searchParams.set('q', q)
+		url.searchParams.set('limit', String(limit))
+		if (cursor) url.searchParams.set('cursor', cursor)
+
+		const controller = new AbortController()
+		const timeoutId = setTimeout(() => controller.abort(), 6000)
+
+		try {
+			const upstreamRes = await fetch(url.toString(), {
+				headers: {
+					Authorization: `Bearer ${apiKey}`,
+					Accept: 'application/json'
+				},
+				signal: controller.signal
+			})
+
+			clearTimeout(timeoutId)
+
+			if (!upstreamRes.ok) {
+				const errorText = await upstreamRes.text()
+				res.status(upstreamRes.status).send({
+					ok: false,
+					error: `Karakeep API error: ${upstreamRes.status} ${upstreamRes.statusText}`,
+					details: errorText
+				})
+				return
+			}
+
+			const data = (await upstreamRes.json()) as any
+			res.send({
+				ok: true,
+				bookmarks: data.bookmarks || [],
+				nextCursor: data.nextCursor || null
+			})
+		} catch (err: any) {
+			clearTimeout(timeoutId)
+			const isAbort = err.name === 'AbortError'
+			res.status(504).send({
+				ok: false,
+				error: isAbort ? 'Karakeep API request timed out (6s)' : 'Failed to connect to Karakeep API',
+				details: String(err.message || err)
+			})
+		}
+	})
 })
 
 app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {
