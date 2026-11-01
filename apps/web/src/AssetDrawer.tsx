@@ -29,10 +29,22 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
     const [searchQuery, setSearchQuery] = useState('')
     const [svgCode, setSvgCode] = useState('')
     const [statusMessage, setStatusMessage] = useState<string | null>(null)
+    const [touchStartX, setTouchStartX] = useState<number | null>(null)
+    const [touchStartY, setTouchStartY] = useState<number | null>(null)
 
     const showToast = (msg: string) => {
         setStatusMessage(msg)
         setTimeout(() => setStatusMessage(null), 2200)
+    }
+
+    const handleInsert = (action: (ed: any) => void, title: string) => {
+        if (!editor) return
+        action(editor)
+        showToast(`'${title}' 캔버스에 추가됨!`)
+        // On mobile touchscreens (< 640px), close automatically so the user immediately sees the placed shape
+        if (typeof window !== 'undefined' && window.innerWidth < 640) {
+            setTimeout(onClose, 260)
+        }
     }
 
     // UI Kit items
@@ -420,6 +432,9 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
             editor.select(shapeId)
             setSvgCode('')
             showToast('SVG 벡터 그래픽이 캔버스에 삽입되었습니다! 🎨')
+            if (typeof window !== 'undefined' && window.innerWidth < 640) {
+                setTimeout(onClose, 260)
+            }
         } catch (e: any) {
             alert('SVG 삽입 실패: ' + e.message)
         }
@@ -443,33 +458,80 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                 style={{
                     position: 'fixed',
                     inset: 0,
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    backdropFilter: 'blur(2px)',
+                    background: 'rgba(0, 0, 0, 0.38)',
+                    backdropFilter: 'blur(3px)',
                     zIndex: 900
                 }}
             />
 
             {/* Slide-in Drawer */}
             <div
+                onTouchStart={(e) => {
+                    setTouchStartX(e.touches[0].clientX)
+                    setTouchStartY(e.touches[0].clientY)
+                }}
+                onTouchEnd={(e) => {
+                    if (touchStartX !== null && touchStartY !== null) {
+                        const deltaX = e.changedTouches[0].clientX - touchStartX
+                        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY)
+                        // If swiped right by at least 45px towards screen edge
+                        if (deltaX > 45 && deltaY < 90) {
+                            onClose()
+                        }
+                    }
+                    setTouchStartX(null)
+                    setTouchStartY(null)
+                }}
                 style={{
                     position: 'fixed',
                     top: isDiscord ? 48 : 0,
                     right: 0,
                     bottom: 0,
-                    width: 'min(380px, calc(100vw - 24px))',
+                    width: 'min(360px, 84vw)',
                     background: '#ffffff',
                     borderLeft: '1px solid #e5e7eb',
-                    boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.12)',
+                    boxShadow: '-6px 0 28px rgba(0, 0, 0, 0.16)',
                     zIndex: 999,
                     display: 'flex',
                     flexDirection: 'column',
                     animation: 'drawerSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
             >
+                {/* Quick Collapse Tab Handle attached to drawer's left edge */}
+                <button
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute',
+                        left: -38,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 38,
+                        height: 56,
+                        background: 'rgba(255, 255, 255, 0.98)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid #cbd5e1',
+                        borderRight: 'none',
+                        borderTopLeftRadius: 10,
+                        borderBottomLeftRadius: 10,
+                        boxShadow: '-4px 2px 10px rgba(0, 0, 0, 0.12)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 2,
+                        zIndex: 1000
+                    }}
+                    title="서랍 접기 (닫기)"
+                >
+                    <span style={{ fontSize: 13, color: '#334155' }}>▶</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#64748b', writingMode: 'vertical-rl' }}>닫기</span>
+                </button>
+
                 {/* Header */}
                 <div
                     style={{
-                        padding: '14px 16px',
+                        padding: '12px 16px',
                         borderBottom: '1px solid #f0f0f0',
                         display: 'flex',
                         alignItems: 'center',
@@ -491,17 +553,22 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                     <button
                         onClick={onClose}
                         style={{
-                            border: 'none',
-                            background: 'transparent',
-                            fontSize: 18,
+                            border: '1px solid #cbd5e1',
+                            background: '#f1f5f9',
+                            fontSize: 12,
+                            fontWeight: 700,
                             cursor: 'pointer',
-                            color: '#9ca3af',
-                            padding: '4px 8px',
-                            borderRadius: 6
+                            color: '#1e293b',
+                            padding: '6px 12px',
+                            borderRadius: 8,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
                         }}
                         title="서랍 닫기"
                     >
-                        ✕
+                        <span>✕</span>
+                        <span>닫기</span>
                     </button>
                 </div>
 
@@ -590,12 +657,7 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                             {filteredUI.map(item => (
                                 <div
                                     key={item.id}
-                                    onClick={() => {
-                                        if (editor) {
-                                            item.action(editor)
-                                            showToast(`'${item.title}' 캔버스에 추가됨!`)
-                                        }
-                                    }}
+                                    onClick={() => handleInsert(item.action, item.title)}
                                     style={{
                                         padding: '10px 12px',
                                         borderRadius: 8,
@@ -641,10 +703,10 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                                             <div
                                                 key={tIdx}
                                                 onClick={() => {
-                                                    if (editor) {
-                                                        const center = editor.getViewportPageBounds().center
-                                                        const id = createShapeId()
-                                                        editor.createShapes([
+                                                    const center = editor?.getViewportPageBounds()?.center || { x: 0, y: 0 }
+                                                    const id = createShapeId()
+                                                    handleInsert((ed) => {
+                                                        ed.createShapes([
                                                             {
                                                                 id,
                                                                 type: 'wired-token-swatch',
@@ -659,9 +721,8 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                                                                 }
                                                             }
                                                         ])
-                                                        editor.select(id)
-                                                        showToast(`'${token.name}' 스와치 카드 생성됨!`)
-                                                    }
+                                                        ed.select(id)
+                                                    }, token.name)
                                                 }}
                                                 style={{
                                                     border: '1px solid #e2e8f0',
@@ -700,12 +761,7 @@ export function AssetDrawer({ editor, isOpen, onClose, isDiscord = false }: Asse
                             {referencePresets.map((item, idx) => (
                                 <div
                                     key={idx}
-                                    onClick={() => {
-                                        if (editor) {
-                                            item.action(editor)
-                                            showToast(`'${item.title}' 캔버스에 추가됨!`)
-                                        }
-                                    }}
+                                    onClick={() => handleInsert(item.action, item.title)}
                                     style={{
                                         padding: '12px',
                                         borderRadius: 8,
