@@ -215,6 +215,38 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 			})
 		}
 	})
+
+	// [DRAW-9] Jambot-style On-Canvas AI Ideation Quick Gestures Endpoint
+	app.post('/api/ai/ideate', async (req, res) => {
+		const { generateAiIdeas, parseRequestBody } = await import('./ai')
+		try {
+			const body = await parseRequestBody(req)
+			const { mode, text, context } = body || {}
+
+			if (!text || typeof text !== 'string' || !text.trim()) {
+				res.status(400).send({
+					ok: false,
+					error: 'Missing or empty "text" parameter in request body'
+				})
+				return
+			}
+
+			const result = await generateAiIdeas({
+				mode: (mode as any) || 'branch',
+				text: text.trim(),
+				context
+			})
+
+			res.send(result)
+		} catch (err: any) {
+			console.error('[AI Ideate Error]', err)
+			res.status(500).send({
+				ok: false,
+				error: 'Internal server error in ideate endpoint',
+				details: String(err?.message || err)
+			})
+		}
+	})
 })
 
 app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {

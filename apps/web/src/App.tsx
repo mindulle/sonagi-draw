@@ -12,6 +12,7 @@ import { WiredMcpInboxShapeUtil } from './WiredMcpInboxShape'
 
 import { CustomMainMenu } from "./CustomMainMenu"
 import { AssetDrawer } from "./AssetDrawer"
+import { JambotQuickGestures } from "./JambotQuickGestures"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { getAssetUrls } from '@tldraw/assets/selfHosted'
@@ -641,6 +642,7 @@ function InFrontWrapper({ roomId }: { roomId: string }) {
     const isMobile = useIsMobile()
     return (
         <>
+            <JambotQuickGestures />
             <div style={{ position: 'absolute', top: 16, left: 60, zIndex: 9999, pointerEvents: 'none' }}>
                 <SonagiLogo height={24} variant="full" />
             </div>
@@ -927,7 +929,8 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     // Memoize components and assetUrls so <Tldraw> NEVER re-mounts
     const components = useMemo(() => ({
         MainMenu: CustomMainMenu,
-        SharePanel: () => null
+        SharePanel: () => null,
+        InFrontOfTheCanvas: () => <JambotQuickGestures />
     }), [])
 
     const handleMount = useCallback((ed: any) => {
