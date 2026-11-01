@@ -289,6 +289,47 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 			clients: getConnectedClients()
 		})
 	})
+
+	// [DRAW-7] Client Diagnostics & Remote Error Tracking Endpoints
+	app.post('/api/bridge/logs', async (req, res) => {
+		const { recordDiagnosticLog, recordDiagnosticLogsBatch } = await import('./diagnostics')
+		const { parseRequestBody } = await import('./ai')
+		try {
+			const body = await parseRequestBody(req)
+			if (Array.isArray(body)) {
+				const count = recordDiagnosticLogsBatch(body)
+				res.send({ ok: true, received: count })
+			} else if (body && typeof body === 'object') {
+				const log = recordDiagnosticLog(body)
+				res.send({ ok: true, id: log.id })
+			} else {
+				res.status(400).send({ ok: false, error: 'Invalid payload' })
+			}
+		} catch (err: any) {
+			res.status(500).send({ ok: false, error: err?.message || String(err) })
+		}
+	})
+
+	app.get('/api/bridge/logs', async (req, res) => {
+		const { getDiagnosticLogs } = await import('./diagnostics')
+		const query = (req.query as any) || {}
+		const limit = query.limit ? parseInt(query.limit, 10) : 50
+		const level = query.level ? String(query.level) : undefined
+		const type = query.type ? String(query.type) : undefined
+		const fileOrRoom = query.fileOrRoom ? String(query.fileOrRoom) : undefined
+		const since = query.since ? parseInt(query.since, 10) : undefined
+
+		const logs = getDiagnosticLogs({ limit, level, type, fileOrRoom, since })
+		res.send({ ok: true, count: logs.length, logs })
+	})
+
+	app.get('/api/bridge/health', async (req, res) => {
+		const { getDiagnosticsHealth } = await import('./diagnostics')
+		const { getConnectedClientsCount } = await import('./bridge')
+		const activeClients = getConnectedClientsCount()
+		const health = getDiagnosticsHealth(activeClients)
+		res.send(health)
+	})
 })
 
 app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {

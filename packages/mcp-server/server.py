@@ -376,6 +376,60 @@ def get_page_shapes_live(room_id: str, page_name: Optional[str] = None) -> Dict[
     return result
 
 
+@mcp.tool()
+def get_client_debug_logs(limit: int = 50, level: Optional[str] = None, file_or_room: Optional[str] = None) -> str:
+    """
+    [CEO-1151 / DRAW-7] 로컬 클라이언트(Obsidian, Web, Discord Activity)의 실시간 DevTools 콘솔 및 비동기 에러 로그를 조회합니다.
+    level: 'error', 'warn', 'info' 또는 None(전체).
+    """
+    try:
+        params: Dict[str, Any] = {"limit": limit}
+        if level:
+            params["level"] = level
+        if file_or_room:
+            params["fileOrRoom"] = file_or_room
+
+        resp = httpx.get("http://127.0.0.1:5858/api/bridge/logs", params=params, timeout=5.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            logs = data.get("logs", [])
+            if not logs:
+                return "✅ 수집된 클라이언트 에러/경고 로그가 없습니다 (정상 상태)."
+            return json.dumps(logs, ensure_ascii=False, indent=2)
+        return f"⚠️ 로그 조회 실패 (HTTP {resp.status_code}): {resp.text}"
+    except Exception as e:
+        return f"❌ 브릿지 서버 연결 실패: {e}"
+
+
+@mcp.tool()
+def diagnose_canvas_health() -> str:
+    """
+    [CEO-1151 / DRAW-7] 캔버스 클라이언트 및 브릿지 인프라의 전반적인 건강 상태와 에러 발생률을 진단합니다.
+    """
+    try:
+        resp = httpx.get("http://127.0.0.1:5858/api/bridge/health", timeout=5.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            status = data.get("status", "unknown")
+            icon = "🟢" if status == "healthy" else ("🟡" if status == "degraded" else "🔴")
+            report = [
+                f"{icon} 캔버스 헬스 리포트: {status.upper()}",
+                f"- 활성 웹소켓 클라이언트: {data.get('activeClients', 0)}개",
+                f"- 최근 5분간 에러 수: {data.get('recentErrorCount', 0)}건",
+                f"- 서버 가동 시간: {data.get('uptimeSeconds', 0)}초",
+                f"- 누적 진단 로그: {data.get('totalLogsStored', 0)}건",
+            ]
+            if data.get("latestError"):
+                err = data["latestError"]
+                report.append(f"\n최근 에러 요약: [{err.get('type')}] {err.get('message')}")
+                if err.get("stack"):
+                    report.append(f"스택:\n{err.get('stack')[:300]}...")
+            return "\n".join(report)
+        return f"⚠️ 헬스체크 실패 (HTTP {resp.status_code}): {resp.text}"
+    except Exception as e:
+        return f"❌ 브릿지 서버 연결 실패: {e}"
+
+
 def _run_bridge(args: Dict[str, Any]) -> str:
     """Local API Bridge (Fast Path)를 먼저 시도하고, 실패 시 Playwright canvas_bridge.mjs로 Fallback합니다."""
     # 1. Fast Path: Local API Bridge (10ms)
