@@ -103,6 +103,97 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	})
 
 	
+	// [Drawings API] llm-wiki / drawings support for standalone and proxy modes
+	const DRAWINGS_DIR = process.env.DRAWINGS_DIR || '/home/ubuntu/llm-wiki/03_Resources/Drawings'
+
+	app.get('/api/drawings', async (req, res) => {
+		const query = (req.query as any) || {}
+		const fileName = query.file
+		if (fileName) {
+			let filePath = path.join(DRAWINGS_DIR, `${fileName}.tldr`)
+			try {
+				await fs.access(filePath)
+			} catch {
+				const safeName = fileName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3-]/g, '_')
+				const altPath = path.join(DRAWINGS_DIR, `${safeName}.tldr`)
+				try {
+					await fs.access(altPath)
+					filePath = altPath
+				} catch {
+					res.status(404).send({ error: 'Drawing file not found' })
+					return
+				}
+			}
+			const content = await fs.readFile(filePath, 'utf-8')
+			res.header('Content-Type', 'application/json').send(content)
+			return
+		}
+
+		try {
+			const rawFiles = await fs.readdir(DRAWINGS_DIR)
+			const files = await Promise.all(
+				rawFiles
+					.filter((f) => f.endsWith('.tldr'))
+					.map(async (f) => {
+						const stat = await fs.stat(path.join(DRAWINGS_DIR, f))
+						return {
+							name: f.replace(/\.tldr$/, ''),
+							size: stat.size,
+							updatedAt: stat.mtime
+						}
+					})
+			)
+			files.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+			res.send({ files })
+		} catch (err: any) {
+			res.status(500).send({ error: String(err) })
+		}
+	})
+
+	app.post('/api/drawings/new', async (req, res) => {
+		const body = (req.body as any) || {}
+		const rawName = (body.name || `Drawing_${Date.now()}`).trim()
+		const safeName = rawName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3 .()-]/g, '_')
+		const filePath = path.join(DRAWINGS_DIR, `${safeName}.tldr`)
+		try {
+			await fs.access(filePath)
+			res.status(409).send({ error: '동일한 이름의 도면이 이미 존재합니다.' })
+			return
+		} catch {}
+
+		const template = {
+			schema: { schemaVersion: 2, sequences: { 'com.tldraw.store': 4, 'com.tldraw.asset': 1 } },
+			records: [
+				{ id: 'document:document', typeName: 'document' },
+				{ id: 'page:page', name: 'Page 1', index: 'a1', typeName: 'page' }
+			]
+		}
+		await fs.writeFile(filePath, JSON.stringify(template, null, 2), 'utf-8')
+		res.status(201).send({ success: true, name: safeName })
+	})
+
+	app.post('/api/drawings', async (req, res) => {
+		const body = (req.body as any) || {}
+		const query = (req.query as any) || {}
+		const fileName = (body.file || query.file || '').trim()
+		if (!fileName) {
+			res.status(400).send({ error: 'Missing file parameter' })
+			return
+		}
+
+		let filePath = path.join(DRAWINGS_DIR, `${fileName}.tldr`)
+		try {
+			await fs.access(filePath)
+		} catch {
+			const safeFileName = fileName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3 .()-]/g, '_')
+			filePath = path.join(DRAWINGS_DIR, `${safeFileName}.tldr`)
+		}
+
+		const rawSnapshot = body.snapshot || body.data || body
+		await fs.writeFile(filePath, JSON.stringify(rawSnapshot, null, 2), 'utf-8')
+		res.send({ success: true, name: path.basename(filePath, '.tldr') })
+	})
+
 	// [Agentic Injection API] Safe REST Endpoint for Agent/MCP
 	app.post('/api/rooms/:roomId/inject', async (req, res) => {
 		const roomId = (req.params as any).roomId as string

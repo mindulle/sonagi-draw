@@ -14,6 +14,7 @@ import { CustomMainMenu } from "./CustomMainMenu"
 import { AssetDrawer } from "./AssetDrawer"
 import { JambotQuickGestures } from "./JambotQuickGestures"
 import { LocalBridgeReceiver } from "./LocalBridgeReceiver"
+import { normalizeTldrawSnapshot } from "./snapshotNormalization"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { getAssetUrls } from '@tldraw/assets/selfHosted'
@@ -736,6 +737,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const editorRef = useRef<any>(null)
     const isLoadingRef = useRef<boolean>(false)
     const autoSaveTimerRef = useRef<any>(null)
+    const pendingLoadAbortRef = useRef<AbortController | null>(null)
 
     const showToast = useCallback((msg: string) => {
         setToastMessage(msg)
@@ -744,19 +746,38 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
     const loadFile = useCallback((fileName: string) => {
         if (!fileName || !editorRef.current) return
-        currentFileRef.current = fileName
-        setActiveFileName(fileName)
-        isLoadingRef.current = true
 
-        fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`)
+        // 1. Cancel any pending auto-save immediately to prevent overwriting next file with previous canvas!
+        clearTimeout(autoSaveTimerRef.current)
+
+        // 2. Abort any previous in-flight fetch
+        if (pendingLoadAbortRef.current) {
+            pendingLoadAbortRef.current.abort()
+        }
+        const abortController = new AbortController()
+        pendingLoadAbortRef.current = abortController
+
+        isLoadingRef.current = true
+        setActiveFileName(fileName)
+
+        fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`, { signal: abortController.signal })
             .then(res => {
-                if (!res.ok) throw new Error('File not found')
+                if (!res.ok) throw new Error(`서버에서 도면을 찾을 수 없습니다. (HTTP ${res.status})`)
                 return res.json()
             })
-            .then(snapshot => {
-                // Load document store (excluding stale session camera state if present)
-                const docSnapshot = snapshot.document ? { store: snapshot.document.store, schema: snapshot.document.schema } : snapshot
-                editorRef.current.loadSnapshot(docSnapshot)
+            .then(rawJson => {
+                if (abortController.signal.aborted) return
+
+                const normalized = normalizeTldrawSnapshot(rawJson)
+
+                // Safely update current file pointer only after successful normalization
+                currentFileRef.current = fileName
+
+                try {
+                    editorRef.current.loadSnapshot(normalized)
+                } catch (loadErr: any) {
+                    throw new Error(`스냅샷 적용 실패: ${loadErr.message || loadErr}`)
+                }
 
                 requestAnimationFrame(() => {
                     setTimeout(() => {
@@ -771,10 +792,12 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 })
             })
             .catch(err => {
+                if (err.name === 'AbortError') return
                 console.error('Failed to load drawing snapshot:', err)
                 isLoadingRef.current = false
+                showToast(`❌ '${fileName}' 도면 로드 실패: ${err.message}`)
             })
-    }, [])
+    }, [showToast])
 
     // 1. Fetch file list from /api/drawings once
     useEffect(() => {
@@ -954,7 +977,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
         }
 
         ed.store.listen((entry: any) => {
-            if (isLoadingRef.current) return
+            if (isLoadingRef.current || !currentFileRef.current) return
             if (entry && entry.source === 'remote') return
 
             clearTimeout(autoSaveTimerRef.current)
@@ -964,7 +987,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 fetch('/api/drawings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file: currentFileRef.current, data: snapshot })
+                    body: JSON.stringify({
+                        file: currentFileRef.current,
+                        data: snapshot,
+                        snapshot: snapshot
+                    })
                 }).catch(console.error)
             }, 2000)
         })
