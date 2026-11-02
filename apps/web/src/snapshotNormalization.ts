@@ -22,39 +22,55 @@ export function normalizeTldrawSnapshot(raw: any): { store: Record<string, any>;
         data = data.data
     }
 
+    let store: Record<string, any> | null = null
+    let schema: any = data.schema
+
     // 2. Format: TLEditorSnapshot { document: { store, schema }, session }
     if (data.document?.store && typeof data.document.store === 'object') {
-        return {
-            store: data.document.store,
-            schema: data.document.schema || data.schema
-        }
+        store = { ...data.document.store }
+        schema = data.document.schema || data.schema
     }
-
     // 3. Format: TLStoreSnapshot { store, schema }
-    if (data.store && typeof data.store === 'object' && !Array.isArray(data.store)) {
-        return {
-            store: data.store,
-            schema: data.schema
-        }
+    else if (data.store && typeof data.store === 'object' && !Array.isArray(data.store)) {
+        store = { ...data.store }
+        schema = data.schema
     }
-
     // 4. Format: Official Tldraw JSON export { tldrawFileFormatVersion: 1, schema, records: [...] }
-    if (Array.isArray(data.records)) {
-        const store = Object.fromEntries(data.records.map((r: any) => [r.id, r]))
-        return {
-            store,
-            schema: data.schema
-        }
+    else if (Array.isArray(data.records)) {
+        store = Object.fromEntries(data.records.map((r: any) => [r.id, r]))
+        schema = data.schema
     }
-
     // 5. Format: document with records array
-    if (Array.isArray(data.document?.records)) {
-        const store = Object.fromEntries(data.document.records.map((r: any) => [r.id, r]))
-        return {
-            store,
-            schema: data.document.schema || data.schema
+    else if (Array.isArray(data.document?.records)) {
+        store = Object.fromEntries(data.document.records.map((r: any) => [r.id, r]))
+        schema = data.document.schema || data.schema
+    }
+
+    if (!store || typeof store !== 'object') {
+        throw new Error('도면 스토어(store/records) 레코드를 찾을 수 없습니다.')
+    }
+
+    // Ensure document:document has required default properties (prevents "At document.gridSize: Expected number" error)
+    if (store['document:document']) {
+        store['document:document'] = {
+            gridSize: 10,
+            name: '',
+            meta: {},
+            ...store['document:document']
         }
     }
 
-    throw new Error('도면 스토어(store/records) 레코드를 찾을 수 없습니다.')
+    // Ensure page:page has required properties
+    for (const record of Object.values(store)) {
+        if (record && typeof record === 'object' && record.typeName === 'page') {
+            if (!record.meta) record.meta = {}
+            if (!record.name) record.name = 'Page 1'
+            if (!record.index) record.index = 'a1'
+        }
+    }
+
+    return {
+        store,
+        schema
+    }
 }

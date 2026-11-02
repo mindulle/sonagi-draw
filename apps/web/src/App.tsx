@@ -723,7 +723,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
     // New drawing modal state
     const [newDrawingName, setNewDrawingName] = useState('')
-    const [newTemplate, setNewTemplate] = useState<'blank' | '4tabs' | 'moodboard'>('blank')
+    const [newTemplate, setNewTemplate] = useState<'blank' | 'tiered' | 'pipeline' | 'hub-spoke' | '4tabs'>('blank')
     const [isCreating, setIsCreating] = useState(false)
 
     // Rename state
@@ -744,7 +744,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
         setTimeout(() => setToastMessage(null), 2500)
     }, [])
 
-    const loadFile = useCallback((fileName: string) => {
+    const loadFile = useCallback((fileName: string, onComplete?: () => void) => {
         if (!fileName || !editorRef.current) return
 
         // 1. Cancel any pending auto-save immediately to prevent overwriting next file with previous canvas!
@@ -788,6 +788,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                                 editorRef.current.zoomToFit({ animation: { duration: 250 } })
                             }
                         } catch (_) {}
+                        onComplete?.()
                     }, 300)
                 })
             })
@@ -839,16 +840,29 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             const data = await res.json()
             if (data.name) {
                 setFileList(prev => [data.name, ...prev.filter(f => f !== data.name)])
-                loadFile(data.name)
+                loadFile(data.name, () => {
+                    if (newTemplate !== 'blank') {
+                        (window as any).__APPLY_ARCHETYPE_TEMPLATE__?.(newTemplate)
+                        // Trigger immediate auto-save so the template shapes are persisted to the new file!
+                        setTimeout(() => {
+                            if (editorRef.current) {
+                                const snapshot = editorRef.current.getSnapshot()
+                                fetch('/api/drawings', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        file: currentFileRef.current,
+                                        data: snapshot,
+                                        snapshot: snapshot
+                                    })
+                                }).catch(console.error)
+                            }
+                        }, 200)
+                    }
+                })
                 setIsNewModalOpen(false)
                 setIsModalOpen(false)
                 showToast(`✨ 새 도면 '${data.name}'이(가) 생성되었습니다!`)
-
-                if (newTemplate === '4tabs') {
-                    setTimeout(() => {
-                        (window as any).__APPLY_4TABS_TEMPLATE__?.()
-                    }, 400)
-                }
             } else if (data.error) {
                 alert(data.error)
             }
@@ -1398,13 +1412,31 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                                             id: 'blank',
                                             icon: '📄',
                                             title: '빈 캔버스 (Blank Canvas)',
-                                            desc: '백지 상태에서 자유롭게 기획하고 그립니다.'
+                                            desc: '백지 상태에서 자유롭게 기획하고 작도합니다.'
+                                        },
+                                        {
+                                            id: 'tiered',
+                                            icon: '🏗️',
+                                            title: '계층형 아키텍처 (Tiered Topology)',
+                                            desc: 'Client ➔ API/Gateway ➔ DB/Storage 3계층 단일 캔버스 구조도.'
+                                        },
+                                        {
+                                            id: 'pipeline',
+                                            icon: '🔄',
+                                            title: '선형 파이프라인 (Linear Pipeline)',
+                                            desc: '수집 ➔ 변환 ➔ 실행 ➔ 전달 단계별 순차 데이터/이벤트 흐름도.'
+                                        },
+                                        {
+                                            id: 'hub-spoke',
+                                            icon: '🌐',
+                                            title: '허브 앤 스포크 (Hub & Spoke)',
+                                            desc: '중앙 코어 오케스트레이터 및 방사형 분배 노드 토폴로지.'
                                         },
                                         {
                                             id: '4tabs',
                                             icon: '📌',
-                                            title: '4-Tabs 기획 템플릿 (Full Set)',
-                                            desc: '요구사항, 유저 저니, 와이어프레임, 무드보드 4개 페이지 세팅.'
+                                            title: '앱 기획 풀패키지 (4-Tabs Full Set)',
+                                            desc: '요구사항, 유저 저니, 와이어프레임, 무드보드 4개 페이지 구성.'
                                         }
                                     ].map(tmpl => {
                                         const isSelected = newTemplate === tmpl.id

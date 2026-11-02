@@ -164,12 +164,100 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 		const template = {
 			schema: { schemaVersion: 2, sequences: { 'com.tldraw.store': 4, 'com.tldraw.asset': 1 } },
 			records: [
-				{ id: 'document:document', typeName: 'document' },
-				{ id: 'page:page', name: 'Page 1', index: 'a1', typeName: 'page' }
+				{ id: 'document:document', typeName: 'document', gridSize: 10, name: '', meta: {} },
+				{ id: 'page:page', name: 'Page 1', index: 'a1', typeName: 'page', meta: {} }
 			]
 		}
 		await fs.writeFile(filePath, JSON.stringify(template, null, 2), 'utf-8')
 		res.status(201).send({ success: true, name: safeName })
+	})
+
+	app.post('/api/drawings/duplicate', async (req, res) => {
+		const body = (req.body as any) || {}
+		const targetName = (body.name || body.file || '').trim()
+		let srcPath = path.join(DRAWINGS_DIR, `${targetName}.tldr`)
+		try {
+			await fs.access(srcPath)
+		} catch {
+			const safe = targetName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3 .()-]/g, '_')
+			srcPath = path.join(DRAWINGS_DIR, `${safe}.tldr`)
+			try {
+				await fs.access(srcPath)
+			} catch {
+				res.status(404).send({ error: '원본 도면을 찾을 수 없습니다.' })
+				return
+			}
+		}
+
+		const copyName = `${targetName}_Copy`
+		let destPath = path.join(DRAWINGS_DIR, `${copyName}.tldr`)
+		let counter = 1
+		while (true) {
+			try {
+				await fs.access(destPath)
+				destPath = path.join(DRAWINGS_DIR, `${copyName}_${counter++}.tldr`)
+			} catch {
+				break
+			}
+		}
+		await fs.copyFile(srcPath, destPath)
+		res.send({ success: true, name: path.basename(destPath, '.tldr') })
+	})
+
+	app.post('/api/drawings/rename', async (req, res) => {
+		const body = (req.body as any) || {}
+		const fromName = (body.from || '').trim()
+		const toName = (body.to || '').trim()
+		if (!fromName || !toName) {
+			res.status(400).send({ error: 'from 및 to 파라미터가 필요합니다.' })
+			return
+		}
+		let srcPath = path.join(DRAWINGS_DIR, `${fromName}.tldr`)
+		try {
+			await fs.access(srcPath)
+		} catch {
+			const safe = fromName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3 .()-]/g, '_')
+			srcPath = path.join(DRAWINGS_DIR, `${safe}.tldr`)
+			try {
+				await fs.access(srcPath)
+			} catch {
+				res.status(404).send({ error: '변경할 대상 도면을 찾을 수 없습니다.' })
+				return
+			}
+		}
+
+		const safeTo = toName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3 .()-]/g, '_')
+		const destPath = path.join(DRAWINGS_DIR, `${safeTo}.tldr`)
+		try {
+			await fs.access(destPath)
+			if (srcPath !== destPath) {
+				res.status(409).send({ error: '해당 이름의 도면이 이미 존재합니다.' })
+				return
+			}
+		} catch {}
+
+		await fs.rename(srcPath, destPath)
+		res.send({ success: true, name: safeTo })
+	})
+
+	app.post('/api/drawings/delete', async (req, res) => {
+		const body = (req.body as any) || {}
+		const targetName = (body.name || body.file || '').trim()
+		if (!targetName) {
+			res.status(400).send({ error: 'Missing name parameter' })
+			return
+		}
+		let filePath = path.join(DRAWINGS_DIR, `${targetName}.tldr`)
+		try {
+			await fs.unlink(filePath)
+		} catch {
+			const safe = targetName.replace(/[^a-zA-Z0-9_\uAC00-\uD7A3 .()-]/g, '_')
+			filePath = path.join(DRAWINGS_DIR, `${safe}.tldr`)
+			try {
+				await fs.unlink(filePath)
+			} catch {}
+		}
+		res.send({ success: true })
 	})
 
 	app.post('/api/drawings', async (req, res) => {
