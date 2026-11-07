@@ -42,16 +42,23 @@ export async function storeAsset(id: string, stream: Readable) {
 }
 
 export async function loadAsset(id: string) {
+    // 1. Try local disk storage first (fastest and resilient)
+    try {
+        return await fs.readFile(path.join(LOCAL_DIR, id))
+    } catch (_) {}
+
+    // 2. Fallback to S3 if configured
     if (USE_S3 && s3Client) {
-        // Return presigned URL or fetch object
-        // Since the current API expects to return the data directly (buffer/stream), 
-        // we will fetch and return the buffer.
-        const response = await s3Client.send(new GetObjectCommand({
-            Bucket: BUCKET_NAME,
-            Key: id
-        }))
-        const byteArray = await response.Body?.transformToByteArray()
-        return Buffer.from(byteArray || [])
+        try {
+            const response = await s3Client.send(new GetObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: id
+            }))
+            const byteArray = await response.Body?.transformToByteArray()
+            return Buffer.from(byteArray || [])
+        } catch (err) {
+            throw err
+        }
     } else {
         return await fs.readFile(path.join(LOCAL_DIR, id))
     }

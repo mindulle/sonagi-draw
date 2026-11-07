@@ -323,11 +323,24 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	})
 	app.get('/uploads/:id', async (req, res) => {
 		const id = (req.params as any).id as string
-		const data = await loadAsset(id)
-		// Prevent XSS from user-uploaded SVGs
-		res.header('Content-Security-Policy', "default-src 'none'")
-		res.header('X-Content-Type-Options', 'nosniff')
-		res.send(data)
+		try {
+			const data = await loadAsset(id)
+			if (id.endsWith('.mp4')) {
+				res.header('Content-Type', 'video/mp4')
+				res.header('Accept-Ranges', 'bytes')
+			} else if (id.endsWith('.jpg') || id.endsWith('.jpeg')) {
+				res.header('Content-Type', 'image/jpeg')
+			} else if (id.endsWith('.png')) {
+				res.header('Content-Type', 'image/png')
+			} else if (id.endsWith('.svg')) {
+				res.header('Content-Type', 'image/svg+xml')
+			}
+			res.header('Access-Control-Allow-Origin', '*')
+			res.header('Content-Security-Policy', "default-src 'none'")
+			res.send(data)
+		} catch (err: any) {
+			res.status(404).send({ ok: false, error: 'Asset not found', id })
+		}
 	})
 
 	// To enable unfurling of bookmarks, we add a simple endpoint that takes a URL query param
@@ -442,6 +455,106 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 				error: 'Failed to generate Make Real prototype',
 				details: String(err?.message || err)
 			})
+		}
+	})
+
+	// [DRAW-20] On-Canvas 1-Click Still Image Generation Endpoint
+	app.post('/api/ai/image-generate', async (req, res) => {
+		const { parseRequestBody } = await import('./ai')
+		try {
+			const body = await parseRequestBody(req)
+			const { prompt, model = 'gemini-3.1-flash-image' } = body || {}
+
+			if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+				res.status(400).send({ ok: false, error: 'Missing prompt' })
+				return
+			}
+
+			const adapterResp = await fetch('http://127.0.0.1:38108/v1/images/generations', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ prompt: prompt.trim(), model })
+			})
+
+			if (!adapterResp.ok) {
+				const errText = await adapterResp.text()
+				res.status(502).send({ ok: false, error: 'Image adapter upstream error', details: errText })
+				return
+			}
+
+			const data = (await adapterResp.json()) as any
+			const url = data.data?.[0]?.url || data.data?.[0]?.b64_json
+			res.send({ ok: true, url })
+		} catch (err: any) {
+			console.error('[AI Image Generate Error]', err)
+			res.status(500).send({ ok: false, error: err?.message || String(err) })
+		}
+	})
+
+	// [DRAW-20] On-Canvas 1-Click Veo 3.1 Video Generation Endpoint
+	app.post('/api/ai/video-generate', async (req, res) => {
+		const { parseRequestBody } = await import('./ai')
+		const { spawn } = await import('child_process')
+		const fs = (await import('fs/promises')).default
+		const path = (await import('path')).default
+
+		try {
+			const body = await parseRequestBody(req)
+			const { prompt, aspect = '16:9', model = 'veo-lite', profile = 'mindulle-design' } = body || {}
+
+			if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+				res.status(400).send({ ok: false, error: 'Missing prompt' })
+				return
+			}
+
+			const assetsDir = path.resolve('./.assets')
+			await fs.mkdir(assetsDir, { recursive: true })
+			const assetId = `veo_${Date.now()}.mp4`
+			const outputPath = path.join(assetsDir, assetId)
+
+			const gflowBin = '/home/ubuntu/ai-env/bin/gflow'
+			const args = [
+				'video',
+				't2v',
+				prompt.trim(),
+				'--aspect',
+				aspect,
+				'--model',
+				model,
+				'--profile',
+				profile,
+				'-o',
+				outputPath
+			]
+
+			const child = spawn(gflowBin, args, {
+				env: {
+					...process.env,
+					GFLOW_CLI_FLOW_HOST: 'auto'
+				}
+			})
+
+			let stderrOutput = ''
+			child.stderr.on('data', (d) => {
+				stderrOutput += d.toString()
+			})
+
+			await new Promise((resolve, reject) => {
+				child.on('close', (code) => {
+					if (code === 0) resolve(code)
+					else reject(new Error(`gflow exited with code ${code}: ${stderrOutput.slice(-300)}`))
+				})
+				child.on('error', reject)
+			})
+
+			res.send({
+				ok: true,
+				videoUrl: `/uploads/${assetId}`,
+				assetId
+			})
+		} catch (err: any) {
+			console.error('[AI Video Generate Error]', err)
+			res.status(500).send({ ok: false, error: err?.message || String(err) })
 		}
 	})
 

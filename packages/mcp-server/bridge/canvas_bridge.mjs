@@ -349,27 +349,18 @@ async function getRoomState(page, { pageId, pageName }) {
 }
 
 /**
- * Seeds the 3 default pages (Moodboard/Wireframe & UI Kit/User Journey) of a
- * freshly created room with their placeholder content. Replaces server.py's
- * old create_room + generate_wireframe_kit + generate_user_journey, which
- * built raw tldraw records (hand-rolled "index" values like "c001", "c002", ...
- * that don't follow tldraw's actual fractional-indexing format) and wrote them
- * straight into SQLite - the exact class of bug that crashed sync-server.
- * init_db()'s template-copy (pure file copy) is left alone in server.py; this
- * only replaces the *dynamic* per-room content that used to go through
- * add_shape_to_db.
+ * Seeds a freshly created room with clean single-page content.
+ * Replaces the previous 3-page default (Moodboard / Wireframe / User Journey)
+ * in favor of a clean, unencumbered single page by default.
  */
 async function createRoomContent(page, { title, issueId }) {
-	// richText must be built here in Node scope (page.evaluate() only receives
-	// serialized data, not closures), same reason addStickyNote/addWireframeBox
-	// above build it outside the evaluate() callback.
 	const t = (text) => toRichText(text)
 
-	const moodboardShapes = [
+	const shapes = [
 		{ type: 'text', x: 100, y: 50, props: { color: 'black', size: 'xl', w: 200, textAlign: 'middle', autoSize: true, richText: t(`🎨 ${title}`) } },
 	]
 	if (issueId) {
-		moodboardShapes.push({
+		shapes.push({
 			type: 'text',
 			x: 100,
 			y: 120,
@@ -377,73 +368,21 @@ async function createRoomContent(page, { title, issueId }) {
 		})
 	}
 
-	const wireframeShapes = [
-		{ type: 'geo', x: 100, y: 200, props: { geo: 'rectangle', w: 375, h: 812, color: 'grey', fill: 'none' } },
-		{ type: 'text', x: 100, y: 150, props: { color: 'black', size: 'm', w: 200, textAlign: 'middle', autoSize: true, richText: t('📱 Mobile App') } },
-		{ type: 'geo', x: 600, y: 200, props: { geo: 'rectangle', w: 1280, h: 800, color: 'grey', fill: 'none' } },
-		{ type: 'text', x: 600, y: 150, props: { color: 'black', size: 'm', w: 200, textAlign: 'middle', autoSize: true, richText: t('💻 Web Desktop') } },
-		{ type: 'text', x: 100, y: 1100, props: { color: 'black', size: 'l', w: 200, textAlign: 'middle', autoSize: true, richText: t('📦 UI Kit (Drag & Drop)') } },
-		{ type: 'geo', x: 100, y: 1160, props: { geo: 'rectangle', w: 150, h: 48, color: 'blue', fill: 'semi' } },
-		{ type: 'text', x: 125, y: 1172, props: { color: 'white', size: 's', w: 200, textAlign: 'middle', autoSize: true, richText: t('Primary Btn') } },
-		{ type: 'geo', x: 300, y: 1160, props: { geo: 'rectangle', w: 200, h: 48, color: 'grey', fill: 'none' } },
-		{ type: 'text', x: 320, y: 1172, props: { color: 'grey', size: 's', w: 200, textAlign: 'middle', autoSize: true, richText: t('Input text...') } },
-	]
-
-	const journeyShapes = [
-		{ type: 'text', x: 100, y: 100, props: { color: 'black', size: 'xl', w: 200, textAlign: 'middle', autoSize: true, richText: t('🗺️ User Journey Flowchart') } },
-		{ type: 'note', x: 100, y: 200, props: { color: 'blue', richText: t('1. 사용자가 랜딩 페이지 접속\n(스크롤 유도)') } },
-		{ type: 'note', x: 400, y: 200, props: { color: 'yellow', richText: t('2. CTA 버튼 클릭\n(가입 모달 노출)') } },
-		{ type: 'note', x: 700, y: 200, props: { color: 'green', richText: t('3. 결제 및 온보딩 완료\n(대시보드 이동)') } },
-	]
-
 	return page.evaluate(
-		({ moodboardShapes, wireframeShapes, journeyShapes }) => {
+		({ shapes }) => {
 			const editor = window.editor
 			const results = {}
 
-			// Verified live (CEO-933): the Python-side local SQLite mirror that
-			// init_db() pre-seeds with 3 pages is NOT read by the actual production
-			// sync-server (no Syncthing/volume link between them - see get_room_state's
-			// comment above), so a brand-new room always starts with tldraw's single
-			// default page, whose id is always the fixed 'page:page'. Reuse + rename
-			// that page as the Moodboard tab instead of assuming it was pre-seeded,
-			// and explicitly create the other two tabs via the real Editor API.
-			const moodboardPage = editor.getPages().find((p) => p.id === 'page:page')
-			if (moodboardPage) {
-				if (moodboardPage.name !== '🎨 Moodboard') {
-					editor.renamePage(moodboardPage.id, '🎨 Moodboard')
-				}
-				editor.setCurrentPage(moodboardPage.id)
-				editor.createShapes(moodboardShapes)
-				results.moodboardPageId = moodboardPage.id
-			}
-
-			const ensurePage = (id, name) => {
-				let found = editor.getPages().find((p) => p.id === id || p.name === name)
-				if (!found) {
-					editor.createPage({ id, name })
-					found = editor.getPages().find((p) => p.id === id || p.name === name)
-				}
-				return found
-			}
-
-			const wireframePage = ensurePage('page:wireframe', '📐 Wireframe & UI Kit')
-			if (wireframePage) {
-				editor.setCurrentPage(wireframePage.id)
-				editor.createShapes(wireframeShapes)
-				results.wireframePageId = wireframePage.id
-			}
-
-			const journeyPage = ensurePage('page:journey', '🗺️ User Journey')
-			if (journeyPage) {
-				editor.setCurrentPage(journeyPage.id)
-				editor.createShapes(journeyShapes)
-				results.journeyPageId = journeyPage.id
+			const defaultPage = editor.getPages().find((p) => p.id === 'page:page') || editor.getCurrentPage()
+			if (defaultPage) {
+				editor.setCurrentPage(defaultPage.id)
+				editor.createShapes(shapes)
+				results.pageId = defaultPage.id
 			}
 
 			return results
 		},
-		{ moodboardShapes, wireframeShapes, journeyShapes }
+		{ shapes }
 	)
 }
 

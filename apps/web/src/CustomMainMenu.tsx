@@ -3,7 +3,8 @@ import {
     applyTieredTopologyTemplate,
     applyLinearPipelineTemplate,
     applyHubAndSpokeTemplate,
-    apply4TabsTemplate
+    apply4TabsTemplate,
+    applyCinematicStoryboardTemplate
 } from './archetypeTemplates'
 
 export function CustomMainMenu() {
@@ -15,6 +16,7 @@ export function CustomMainMenu() {
         else if (templateId === 'pipeline') applyLinearPipelineTemplate(editor)
         else if (templateId === 'hub-spoke') applyHubAndSpokeTemplate(editor)
         else if (templateId === '4tabs') apply4TabsTemplate(editor)
+        else if (templateId === 'cinematic') applyCinematicStoryboardTemplate(editor)
     }
     ;(window as any).__APPLY_4TABS_TEMPLATE__ = () => apply4TabsTemplate(editor)
 
@@ -97,6 +99,13 @@ export function CustomMainMenu() {
                     icon="layout"
                     readonlyOk={false}
                     onSelect={() => apply4TabsTemplate(editor)}
+                />
+                <TldrawUiMenuItem
+                    id="apply-cinematic"
+                    label="🎬 AI 시네마틱 스토리보드 삽입"
+                    icon="layout"
+                    readonlyOk={false}
+                    onSelect={() => applyCinematicStoryboardTemplate(editor)}
                 />
             </TldrawUiMenuGroup>
             <DefaultMainMenuContent />

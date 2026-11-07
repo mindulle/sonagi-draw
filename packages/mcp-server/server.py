@@ -98,16 +98,14 @@ def init_db(db_path: str, template_name: str = "default"):
     # 기존 유저 세션 정보만 공통으로 삭제
     c.execute("DELETE FROM documents WHERE id LIKE 'user:%'")
     
-    # default 템플릿을 생성할 때만 기존 shape 등을 밀고 3-Tab을 세팅
+    # default 템플릿을 생성할 때 단일 기본 페이지 세팅
     if template_name == "default":
         c.execute("DELETE FROM documents WHERE id LIKE 'shape:%' OR id LIKE 'asset:%' OR id LIKE 'page:%'")
         
-        # 멀티 페이지(3-Tabs) 주입
+        # 단일 기본 페이지 (Page 1) 주입
         ts = int(time.time() * 1000)
         pages = [
-            ("page:page", json.dumps({"meta":{},"id":"page:page","name":"🎨 Moodboard","index":"a1","typeName":"page"}).encode('utf-8'), ts),
-            ("page:wireframe", json.dumps({"meta":{},"id":"page:wireframe","name":"📐 Wireframe & UI Kit","index":"a2","typeName":"page"}).encode('utf-8'), ts),
-            ("page:journey", json.dumps({"meta":{},"id":"page:journey","name":"🗺️ User Journey","index":"a3","typeName":"page"}).encode('utf-8'), ts)
+            ("page:page", json.dumps({"meta":{},"id":"page:page","name":"Page 1","index":"a1","typeName":"page"}).encode('utf-8'), ts)
         ]
         c.executemany("INSERT INTO documents (id, state, lastChangedClock) VALUES (?, ?, ?)", pages)
         
@@ -117,7 +115,7 @@ def init_db(db_path: str, template_name: str = "default"):
 @mcp.tool()
 def create_room(title: str, issue_id: Optional[str] = None, template_name: str = "default") -> str:
     """
-    신규 tldraw 도면(.tldr)을 생성하고 3개의 멀티 페이지(Moodboard, Wireframe, User Journey)를 기본 세팅합니다.
+    신규 tldraw 도면(.tldr)을 생성합니다 (단일 페이지 기본 세팅).
     template_name을 지정하여 특정 템플릿 기반으로 생성할 수 있습니다.
     """
     safe_title = "".join(c for c in title if c.isalnum() or c in "-_ ").strip().replace(" ", "_")

@@ -222,3 +222,154 @@ export function apply4TabsTemplate(editor: Editor) {
     editor.setCurrentPage(currentPage.id)
     editor.centerOnPoint({ x: 400, y: 400 })
 }
+
+/**
+ * 5. AI 시네마틱 스토리보드 (Cinematic Storyboard 3-Act SSOT)
+ * [DRAW-20] 16:9 뷰파인더, 프롬프트 슬롯, 1클릭 비디오/스틸 생성 내장 템플릿
+ */
+export function applyCinematicStoryboardTemplate(editor: Editor) {
+    const currentPage = editor.getCurrentPage()
+    editor.updatePage({ id: currentPage.id, name: '🎬 Cinematic Storyboard' })
+
+    const shapes: any[] = [
+        // 1. Director's Top HUD
+        {
+            id: createShapeId(),
+            type: 'geo',
+            x: 60,
+            y: 40,
+            props: { geo: 'rectangle', w: 2240, h: 90, color: 'black', fill: 'semi', size: 'm' }
+        },
+        {
+            id: createShapeId(),
+            type: 'text',
+            x: 90,
+            y: 55,
+            props: {
+                w: 1800,
+                size: 'l',
+                color: 'yellow',
+                font: 'mono',
+                richText: toRichText('🎬 [PORT-5] Mindulle Atelier 3-Act Cinematic Storyboard Pipeline (SSOT)')
+            }
+        },
+        {
+            id: createShapeId(),
+            type: 'text',
+            x: 90,
+            y: 95,
+            props: {
+                w: 1800,
+                size: 's',
+                color: 'grey',
+                font: 'mono',
+                richText: toRichText('DIRECTOR HUD • RULE: sonagi-cinematic-ops 4대 헌법 • 24FPS H.264 • EBU R128 -14LUFS • 85% GOLDEN SNAP')
+            }
+        },
+
+        // Act 1: [ELS] The Lone Silhouette
+        {
+            id: createShapeId(),
+            type: 'wired-video-card',
+            x: 60,
+            y: 160,
+            props: {
+                w: 480,
+                h: 380,
+                title: 'Scene 01: [ELS] The Lone Silhouette in Blizzard',
+                prompt: '24mm Wide Angle | Blizzard Tundra | Backlight & Amber Rimlight',
+                aspect: '16:9',
+                videoUrl: '/assets/storyboard/scene_01_veo_clip.mp4',
+                posterUrl: '/assets/storyboard/scene_01_els.jpg',
+                status: 'ready'
+            }
+        },
+
+        // Motion Arc Arrow 1 -> 2
+        {
+            id: createShapeId(),
+            type: 'arrow',
+            x: 550,
+            y: 340,
+            props: {
+                start: { x: 0, y: 0 },
+                end: { x: 80, y: 0 },
+                arrowheadEnd: 'arrow',
+                color: 'violet',
+                richText: toRichText('Eye-line Match')
+            }
+        },
+
+        // Act 2: [MS] Kneeling by Obsidian Altar
+        {
+            id: createShapeId(),
+            type: 'wired-video-card',
+            x: 640,
+            y: 160,
+            props: {
+                w: 480,
+                h: 380,
+                title: 'Scene 02: [MS] Kneeling by Obsidian Altar',
+                prompt: '50mm Anamorphic | Kneeling by Rock | Eye-line & Vector Match Cut',
+                aspect: '16:9',
+                videoUrl: '',
+                posterUrl: '/assets/storyboard/scene_02_ms.jpg',
+                status: 'idle'
+            }
+        },
+
+        // Motion Arc Arrow 2 -> 3
+        {
+            id: createShapeId(),
+            type: 'arrow',
+            x: 1130,
+            y: 340,
+            props: {
+                start: { x: 0, y: 0 },
+                end: { x: 80, y: 0 },
+                arrowheadEnd: 'arrow',
+                color: 'violet',
+                richText: toRichText('Light Punch')
+            }
+        },
+
+        // Act 3: [ECU] Awakening of Brass Glyph
+        {
+            id: createShapeId(),
+            type: 'wired-video-card',
+            x: 1220,
+            y: 160,
+            props: {
+                w: 480,
+                h: 380,
+                title: 'Scene 03: [ECU] Awakening of Brass Glyph',
+                prompt: '100mm Macro | Touching Frost Glass | Golden Brass Glow & Caustics',
+                aspect: '16:9',
+                videoUrl: '',
+                posterUrl: '/assets/storyboard/scene_03_ecu.jpg',
+                status: 'idle'
+            }
+        },
+
+        // Master Reference: Monolith Turnaround
+        {
+            id: createShapeId(),
+            type: 'wired-video-card',
+            x: 1800,
+            y: 160,
+            props: {
+                w: 480,
+                h: 380,
+                title: 'Master: 4-View Obsidian Seal Monolith',
+                prompt: '8-Sided Obsidian (#12151d) | Borosilicate Frosted Glass | 2px True Stem',
+                aspect: '16:9',
+                videoUrl: '/assets/storyboard/blender_3d_orbit_seal.mp4',
+                posterUrl: '/assets/storyboard/master_obsidian_seal_turnaround.jpg',
+                status: 'ready'
+            }
+        }
+    ]
+
+    editor.createShapes(shapes)
+    editor.centerOnPoint({ x: 1180, y: 350 })
+}
