@@ -19,6 +19,7 @@ describe('Make Real AI Prototype Engine (DRAW-2)', () => {
 		expect(html).toContain('Email Address')
 		expect(html).toContain('Product Card')
 		expect(html).toContain('Auth Form')
+		expect(html).toContain('sonagi')
 	})
 
 	it('executeMakeReal produces valid HTML prototype', async () => {
