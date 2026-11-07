@@ -48,6 +48,14 @@ export class WiredVideoCardShapeUtil extends ShapeUtil<WiredVideoCardShape> {
 		} as any
 	}
 
+	getIndicatorPath(shape: WiredVideoCardShape) {
+		return new Path2D(`M 0 0 L ${shape.props.w} 0 L ${shape.props.w} ${shape.props.h} L 0 ${shape.props.h} Z`)
+	}
+
+	override indicator(shape: WiredVideoCardShape) {
+		return <rect width={shape.props.w} height={shape.props.h} rx={16} ry={16} />
+	}
+
 	override component(shape: WiredVideoCardShape) {
 		const { w, h, title, videoUrl, posterUrl, prompt, aspect, status } = shape.props
 		const videoH = Math.round(h * 0.65)
