@@ -186,6 +186,21 @@ export const WiredAssetCardMigrations = createShapePropsMigrationSequence({
     sequence: []
 })
 
+export const WiredVideoCardProps = {
+    w: T.number,
+    h: T.number,
+    title: T.string,
+    videoUrl: T.string,
+    posterUrl: T.string,
+    prompt: T.string,
+    aspect: T.string,
+    status: T.string
+}
+
+export const WiredVideoCardMigrations = createShapePropsMigrationSequence({
+    sequence: []
+})
+
 export const WiredReferenceCardProps = {
     w: T.number,
     h: T.number,

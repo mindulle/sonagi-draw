@@ -445,6 +445,106 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 		}
 	})
 
+	// [DRAW-20] On-Canvas 1-Click Still Image Generation Endpoint
+	app.post('/api/ai/image-generate', async (req, res) => {
+		const { parseRequestBody } = await import('./ai')
+		try {
+			const body = await parseRequestBody(req)
+			const { prompt, model = 'gemini-3.1-flash-image' } = body || {}
+
+			if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+				res.status(400).send({ ok: false, error: 'Missing prompt' })
+				return
+			}
+
+			const adapterResp = await fetch('http://127.0.0.1:38108/v1/images/generations', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ prompt: prompt.trim(), model })
+			})
+
+			if (!adapterResp.ok) {
+				const errText = await adapterResp.text()
+				res.status(502).send({ ok: false, error: 'Image adapter upstream error', details: errText })
+				return
+			}
+
+			const data = (await adapterResp.json()) as any
+			const url = data.data?.[0]?.url || data.data?.[0]?.b64_json
+			res.send({ ok: true, url })
+		} catch (err: any) {
+			console.error('[AI Image Generate Error]', err)
+			res.status(500).send({ ok: false, error: err?.message || String(err) })
+		}
+	})
+
+	// [DRAW-20] On-Canvas 1-Click Veo 3.1 Video Generation Endpoint
+	app.post('/api/ai/video-generate', async (req, res) => {
+		const { parseRequestBody } = await import('./ai')
+		const { spawn } = await import('child_process')
+		const fs = (await import('fs/promises')).default
+		const path = (await import('path')).default
+
+		try {
+			const body = await parseRequestBody(req)
+			const { prompt, aspect = '16:9', model = 'veo-lite', profile = 'mindulle-design' } = body || {}
+
+			if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+				res.status(400).send({ ok: false, error: 'Missing prompt' })
+				return
+			}
+
+			const assetsDir = path.resolve('./.assets')
+			await fs.mkdir(assetsDir, { recursive: true })
+			const assetId = `veo_${Date.now()}.mp4`
+			const outputPath = path.join(assetsDir, assetId)
+
+			const gflowBin = '/home/ubuntu/ai-env/bin/gflow'
+			const args = [
+				'video',
+				't2v',
+				prompt.trim(),
+				'--aspect',
+				aspect,
+				'--model',
+				model,
+				'--profile',
+				profile,
+				'-o',
+				outputPath
+			]
+
+			const child = spawn(gflowBin, args, {
+				env: {
+					...process.env,
+					GFLOW_CLI_FLOW_HOST: 'auto'
+				}
+			})
+
+			let stderrOutput = ''
+			child.stderr.on('data', (d) => {
+				stderrOutput += d.toString()
+			})
+
+			await new Promise((resolve, reject) => {
+				child.on('close', (code) => {
+					if (code === 0) resolve(code)
+					else reject(new Error(`gflow exited with code ${code}: ${stderrOutput.slice(-300)}`))
+				})
+				child.on('error', reject)
+			})
+
+			res.send({
+				ok: true,
+				videoUrl: `/uploads/${assetId}`,
+				assetId
+			})
+		} catch (err: any) {
+			console.error('[AI Video Generate Error]', err)
+			res.status(500).send({ ok: false, error: err?.message || String(err) })
+		}
+	})
+
 	// [DRAW-5] Local API Bridge for AI Agent & MCP Control
 	app.get('/api/bridge/ws', { websocket: true }, async (socket, req) => {
 		const { registerBridgeClient, isLocalhost } = await import('./bridge')
