@@ -323,11 +323,24 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 	})
 	app.get('/uploads/:id', async (req, res) => {
 		const id = (req.params as any).id as string
-		const data = await loadAsset(id)
-		// Prevent XSS from user-uploaded SVGs
-		res.header('Content-Security-Policy', "default-src 'none'")
-		res.header('X-Content-Type-Options', 'nosniff')
-		res.send(data)
+		try {
+			const data = await loadAsset(id)
+			if (id.endsWith('.mp4')) {
+				res.header('Content-Type', 'video/mp4')
+				res.header('Accept-Ranges', 'bytes')
+			} else if (id.endsWith('.jpg') || id.endsWith('.jpeg')) {
+				res.header('Content-Type', 'image/jpeg')
+			} else if (id.endsWith('.png')) {
+				res.header('Content-Type', 'image/png')
+			} else if (id.endsWith('.svg')) {
+				res.header('Content-Type', 'image/svg+xml')
+			}
+			res.header('Access-Control-Allow-Origin', '*')
+			res.header('Content-Security-Policy', "default-src 'none'")
+			res.send(data)
+		} catch (err: any) {
+			res.status(404).send({ ok: false, error: 'Asset not found', id })
+		}
 	})
 
 	// To enable unfurling of bookmarks, we add a simple endpoint that takes a URL query param
