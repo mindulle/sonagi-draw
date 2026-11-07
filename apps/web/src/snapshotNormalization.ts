@@ -50,6 +50,16 @@ export function normalizeTldrawSnapshot(raw: any): { store: Record<string, any>;
         throw new Error('도면 스토어(store/records) 레코드를 찾을 수 없습니다.')
     }
 
+    // Strip non-document session records (user, instance, camera, etc.) that crash editor.loadSnapshot()
+    const VALID_DOCUMENT_RECORD_TYPES = new Set(['document', 'page', 'shape', 'asset', 'binding', 'custom_shape_data'])
+    const sanitizedStore: Record<string, any> = {}
+    for (const [id, record] of Object.entries(store)) {
+        if (record && typeof record === 'object' && VALID_DOCUMENT_RECORD_TYPES.has(record.typeName)) {
+            sanitizedStore[id] = record
+        }
+    }
+    store = sanitizedStore
+
     // Ensure document:document has required default properties (prevents "At document.gridSize: Expected number" error)
     if (store['document:document']) {
         store['document:document'] = {

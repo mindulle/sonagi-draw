@@ -678,7 +678,10 @@ const multiplayerAssets: TLAssetStore = {
 function App() {
 	const [mode, setMode] = useState<'room' | 'file'>('file')
 	const [targetRoom, setTargetRoom] = useState<string | null>(null)
-	const [initialFile, setInitialFile] = useState<string | null>(null)
+	const [initialFile, setInitialFile] = useState<string | null>(() => {
+		if (typeof window === 'undefined') return null
+		return new URLSearchParams(window.location.search).get('file')
+	})
 	const [isDiscord, setIsDiscord] = useState(false)
 
     useEffect(() => {
@@ -808,11 +811,14 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 if (data.files && data.files.length > 0) {
                     const names = data.files.map((f: any) => f.name)
                     setFileList(names)
-                    if (!currentFileRef.current && names.length > 0) {
-                        currentFileRef.current = names[0]
-                        setActiveFileName(names[0])
+                    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+                    const targetFile = urlParams?.get('file') || currentFileRef.current || names[0]
+                    const resolved = names.includes(targetFile) ? targetFile : names[0]
+                    if (!currentFileRef.current || currentFileRef.current !== resolved) {
+                        currentFileRef.current = resolved
+                        setActiveFileName(resolved)
                         if (editorRef.current) {
-                            loadFile(names[0])
+                            loadFile(resolved)
                         }
                     }
                 }
@@ -998,6 +1004,14 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             autoSaveTimerRef.current = setTimeout(() => {
                 if (isLoadingRef.current || !currentFileRef.current) return
                 const snapshot = ed.getSnapshot()
+
+                // Guard: Do not overwrite with empty snapshot if loading failed or in race condition
+                const shapeCount = Object.values(snapshot.store || {}).filter((r: any) => r && r.typeName === 'shape').length
+                if (shapeCount === 0) {
+                    console.warn('[AutoSave] Suppressed auto-save of empty canvas to protect file:', currentFileRef.current)
+                    return
+                }
+
                 fetch('/api/drawings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
