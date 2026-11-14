@@ -1,0 +1,13 @@
+node_modules/
+**/node_modules/
+.rooms/
+.assets/
+*.pyc
+__pycache__/
+dist/
+dist-*/
+.venv/
+.env
+.env.*
+*.log
+.DS_Store
