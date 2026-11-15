@@ -76,6 +76,13 @@ function scheduleFlush() {
 		const toSend = [...pendingFlushLogs]
 		pendingFlushLogs = []
 
+		// /api/bridge/logs 는 인증이 필요한 엔드포인트다. 비로그인(읽기 전용) 상태에서는
+		// 401 을 맞으며 요청을 반복하지 않도록 보류해 두고, 로그인 후에 다시 보낸다.
+		if (!(window as any).__drawAuth?.isAuthed) {
+			pendingFlushLogs = [...toSend, ...pendingFlushLogs].slice(-100)
+			return
+		}
+
 		fetch('/api/bridge/logs', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
