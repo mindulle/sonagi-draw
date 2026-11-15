@@ -399,7 +399,8 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 
 		// 낙관적 동시성 제어: 클라이언트가 읽은 버전(baseVersion)과 현재 파일 내용 해시가
 		// 다르면 다른 주체가 먼저 저장한 것이므로 덮어쓰지 않고 409 를 반환한다.
-		const baseVersion = typeof body.baseVersion === 'string' ? body.baseVersion.replace(/^"|"$/g, '') : null
+		const baseVersion =
+			typeof body.baseVersion === 'string' ? body.baseVersion.replace(/^W\//, '').replace(/^"|"$/g, '') : null
 
 		const result = await withFileLock(fileName, async () => {
 			const incoming = body.snapshot || body.data || body
