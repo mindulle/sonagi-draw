@@ -1004,22 +1004,27 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             clearTimeout(autoSaveTimerRef.current)
             autoSaveTimerRef.current = setTimeout(() => {
                 if (isLoadingRef.current || !currentFileRef.current) return
-                const snapshot = ed.getSnapshot()
-
-                // Guard: Do not overwrite with empty snapshot if loading failed or in race condition
-                const shapeCount = Object.values(snapshot.store || {}).filter((r: any) => r && r.typeName === 'shape').length
+                // tldraw 5.x: getSnapshot() 는 { document: { store, schema }, session } 형태다.
+                // 예전 코드는 snapshot.store 를 읽어서 항상 0 으로 판단 → 자동 저장이 영구히 차단됐다.
+                const editorSnapshot: any = ed.getSnapshot()
+                const documentSnapshot: any = editorSnapshot?.document ?? editorSnapshot
+                const store = documentSnapshot?.store ?? {}
+                const shapeCount = Object.values(store).filter((r: any) => r && r.typeName === 'shape').length
                 if (shapeCount === 0) {
                     console.warn('[AutoSave] Suppressed auto-save of empty canvas to protect file:', currentFileRef.current)
                     return
                 }
+
+                // 모든 리더(파일 fallback, 복구 스크립트)가 이해하는 TLStoreSnapshot 형태로 저장한다.
+                const payload = { schema: documentSnapshot.schema, store }
 
                 fetch('/api/drawings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         file: currentFileRef.current,
-                        data: snapshot,
-                        snapshot: snapshot
+                        data: payload,
+                        snapshot: payload
                     })
                 }).catch(console.error)
             }, 2000)

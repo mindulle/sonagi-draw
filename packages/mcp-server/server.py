@@ -150,10 +150,14 @@ def create_room(title: str, issue_id: Optional[str] = None, template_name: str =
     return f"✅ 도면 생성 완료: {room_url}"
 
 @mcp.tool()
-def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: List[str], rules: str) -> str:
+def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: List[str], rules: str, page_id: str = "page:page") -> str:
     """
     [Phase 1] 이미지 배열, 컬러 팔레트, 텍스트 규칙을 tldraw 캔버스에 시각적으로 정렬하여 렌더링합니다.
+
+    page_id: 결과를 배치할 페이지. create_page 로 만든 page id 를 넘기면 그 페이지에 그립니다.
     """
+    if page_id != "page:page" and not page_id.startswith("page:"):
+        return f"❌ 오류: page_id 형식이 올바르지 않습니다: {page_id}"
     if not drawing_exists(room_id):
         return f"❌ 오류: Room ID '{room_id}'가 존재하지 않습니다."
 
@@ -177,16 +181,35 @@ def generate_moodboard_layout(room_id: str, image_urls: List[str], palette_hex: 
         "action": "generate_moodboard_layout",
         "baseUrl": DRAW_BASE_URL,
         "file": room_id,
-        "pageId": "page:page",
+        "pageId": page_id,
         "rules": rules,
         "paletteHex": palette_hex,
         "images": images,
     }
-    error = _run_bridge_or_none(args)
-    if error:
-        return error
+    result_json = _run_bridge(args)
+    if result_json.startswith("❌"):
+        return result_json
 
-    return f"✅ 무드보드 레이아웃 완료 (Images: {len(image_urls)}, Palette: {len(palette_hex)})"
+    try:
+        result = json.loads(result_json)
+    except json.JSONDecodeError:
+        return f"❌ 오류: bridge 응답을 파싱할 수 없습니다: {result_json[:300]}"
+
+    placed_page = result.get("pageId") or page_id
+    text_count = result.get("textCount")
+    image_count = result.get("imageCount")
+
+    # 요청한 페이지와 다르면 잘못 배치된 것이므로 성공으로 보고하지 않는다.
+    if placed_page != page_id:
+        return (
+            f"⚠️ 무드보드를 요청한 페이지({page_id})가 아니라 {placed_page} 에 배치했습니다. "
+            f"tldraw 상태를 확인하세요. (text: {text_count}, images: {image_count})"
+        )
+
+    return (
+        f"✅ 무드보드 레이아웃 완료 (page: {placed_page}, "
+        f"text: {text_count}, images: {image_count}, palette: {len(palette_hex)})"
+    )
 
 @mcp.tool()
 def add_sticky_note(room_id: str, text: str, x: float = 100, y: float = 100, color: str = "yellow", page_id: str = "page:page") -> str:
