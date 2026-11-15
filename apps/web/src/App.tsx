@@ -676,6 +676,68 @@ const multiplayerAssets: TLAssetStore = {
 	},
 }
 
+const INLINE_ASSET_RE = /^data:([a-zA-Z0-9/+.-]+);base64,([\s\S]+)$/
+
+function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
+    const binary = atob(base64)
+    const bytes = new Uint8Array(new ArrayBuffer(binary.length))
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return bytes
+}
+
+function bytesToHex(buffer: ArrayBuffer): string {
+    return Array.from(new Uint8Array(buffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+}
+
+/**
+ * 스냅샷 안의 base64 에셋(data:...)을 /uploads/<sha1>.<ext> 로 업로드하고
+ * 에디터 store 의 src 를 URL 로 바꾼다.
+ *
+ * .tldr 파일에 이미지 원본이 박히면 편집할 때마다 수 MB 를 다시 쓰게 되므로,
+ * 저장 직전에 한 번만 분리한다(내용 해시 키라 중복 업로드가 없다).
+ */
+async function externalizeAssets(editor: any, store: Record<string, any>): Promise<number> {
+    const assets = Object.values(store).filter(
+        (rec: any) => rec && rec.typeName === 'asset' && typeof rec.props?.src === 'string' && rec.props.src.startsWith('data:')
+    )
+    if (assets.length === 0) return 0
+
+    const updates: any[] = []
+    for (const asset of assets as any[]) {
+        const match = INLINE_ASSET_RE.exec(asset.props.src)
+        if (!match) continue
+        const mime = match[1]
+        try {
+            const bytes = base64ToBytes(match[2])
+            if (bytes.length === 0) continue
+            const digest = await crypto.subtle.digest('SHA-1', bytes)
+            const ext = (mime.split('/')[1] || 'bin').split('+')[0].replace(/[^a-z0-9]/gi, '')
+            const key = `${bytesToHex(digest)}.${ext}`
+            const put = await fetch(`/uploads/${key}`, { method: 'PUT', body: bytes })
+            if (!put.ok) {
+                console.warn('[AutoSave] asset upload failed:', put.status)
+                continue
+            }
+            const next = { ...asset, props: { ...asset.props, src: `/uploads/${key}`, mimeType: asset.props.mimeType || mime } }
+            updates.push(next)
+            store[asset.id] = next
+        } catch (err) {
+            console.warn('[AutoSave] asset externalization failed:', err)
+        }
+    }
+
+    if (updates.length > 0 && editor?.store?.put) {
+        try {
+            editor.store.put(updates)
+        } catch (err) {
+            console.warn('[AutoSave] store update failed:', err)
+        }
+    }
+    return updates.length
+}
+
 function App() {
 	const [mode, setMode] = useState<'room' | 'file'>('file')
 	const [targetRoom, setTargetRoom] = useState<string | null>(null)
@@ -744,6 +806,8 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     // 파일 버전(ETag) 기반 낙관적 동시성 제어: 다른 탭/에이전트가 먼저 저장하면 덮어쓰지 않는다.
     const fileVersionRef = useRef<string | null>(null)
     const [saveBlocked, setSaveBlocked] = useState(false)
+    // 마지막으로 저장에 성공한 스냅샷 서명(변경 없으면 POST 자체를 생략한다)
+    const lastSavedRef = useRef<string | null>(null)
     const saveConflictRef = useRef<boolean>(false)
     const pendingLoadAbortRef = useRef<AbortController | null>(null)
 
@@ -770,6 +834,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
         saveConflictRef.current = false
         fileVersionRef.current = null
+        lastSavedRef.current = null
         setSaveBlocked(false)
 
         fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`, { signal: abortController.signal })
@@ -1013,34 +1078,43 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
             clearTimeout(autoSaveTimerRef.current)
             autoSaveTimerRef.current = setTimeout(() => {
-                if (isLoadingRef.current || !currentFileRef.current) return
-                // tldraw 5.x: getSnapshot() 는 { document: { store, schema }, session } 형태다.
-                // 예전 코드는 snapshot.store 를 읽어서 항상 0 으로 판단 → 자동 저장이 영구히 차단됐다.
-                const editorSnapshot: any = ed.getSnapshot()
-                const documentSnapshot: any = editorSnapshot?.document ?? editorSnapshot
-                const store = documentSnapshot?.store ?? {}
-                const shapeCount = Object.values(store).filter((r: any) => r && r.typeName === 'shape').length
-                if (shapeCount === 0) {
-                    console.warn('[AutoSave] Suppressed auto-save of empty canvas to protect file:', currentFileRef.current)
-                    return
-                }
+                void (async () => {
+                    if (isLoadingRef.current || !currentFileRef.current || saveConflictRef.current) return
+                    // tldraw 5.x: getSnapshot() 는 { document: { store, schema }, session } 형태다.
+                    // 예전 코드는 snapshot.store 를 읽어서 항상 0 으로 판단 → 자동 저장이 영구히 차단됐다.
+                    const editorSnapshot: any = ed.getSnapshot()
+                    const documentSnapshot: any = editorSnapshot?.document ?? editorSnapshot
+                    const store: any = documentSnapshot?.store ?? {}
+                    const shapeCount = Object.values(store).filter((r: any) => r && r.typeName === 'shape').length
+                    if (shapeCount === 0) {
+                        console.warn('[AutoSave] Suppressed auto-save of empty canvas to protect file:', currentFileRef.current)
+                        return
+                    }
 
-                // 모든 리더(파일 fallback, 복구 스크립트)가 이해하는 TLStoreSnapshot 형태로 저장한다.
-                const payload = { schema: documentSnapshot.schema, store }
+                    // base64 에셋을 /uploads 로 분리 (파일 비대화 방지)
+                    try {
+                        await externalizeAssets(ed, store)
+                    } catch (err) {
+                        console.warn('[AutoSave] asset externalization failed:', err)
+                    }
 
-                if (saveConflictRef.current) return
+                    // 모든 리더(파일 fallback, 복구 스크립트)가 이해하는 TLStoreSnapshot 형태로 저장한다.
+                    const payload = { schema: documentSnapshot.schema, store }
+                    const signature = JSON.stringify(payload)
+                    // 직전 저장과 내용이 같으면 네트워크·디스크를 건드리지 않는다.
+                    if (signature === lastSavedRef.current) return
 
-                fetch('/api/drawings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        file: currentFileRef.current,
-                        data: payload,
-                        snapshot: payload,
-                        baseVersion: fileVersionRef.current || undefined
-                    })
-                })
-                    .then(async (res) => {
+                    try {
+                        const res = await fetch('/api/drawings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                file: currentFileRef.current,
+                                data: payload,
+                                snapshot: payload,
+                                baseVersion: fileVersionRef.current || undefined
+                            })
+                        })
                         if (res.status === 409) {
                             saveConflictRef.current = true
                             setSaveBlocked(true)
@@ -1050,13 +1124,16 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                             return
                         }
                         if (res.ok) {
+                            lastSavedRef.current = signature
                             const body = await res.json().catch(() => ({} as any))
                             if (body && typeof body.version === 'string') {
                                 fileVersionRef.current = body.version
                             }
                         }
-                    })
-                    .catch(console.error)
+                    } catch (err) {
+                        console.error('[AutoSave] save failed:', err)
+                    }
+                })()
             }, 2000)
         })
     }, [loadFile])
