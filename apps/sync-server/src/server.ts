@@ -23,6 +23,7 @@ import { unfurl } from './unfurl'
 import fs from 'fs/promises'
 import path from 'path'
 import crypto from 'node:crypto'
+import { Readable } from 'node:stream'
 import { withFileLock } from './fileLock'
 
 
@@ -34,6 +35,34 @@ const PORT = 5858
 const app = fastify()
 app.register(websocketPlugin)
 app.register(cors, { origin: '*' })
+
+const DATA_URL_RE = /^data:([a-zA-Z0-9/+.-]+);base64,([\s\S]+)$/
+
+/**
+ * 스냅샷 안의 base64 이미지(data:...)를 MinIO 로 올리고 src 를 /uploads/<key> 로 바꾼다.
+ * .tldr 파일이 수 MB 로 부풀어 저장·해시 비용이 커지는 것을 막는다.
+ */
+async function externalizeInlineAssets(store: Record<string, any>): Promise<number> {
+	let converted = 0
+	for (const rec of Object.values(store)) {
+		if (!rec || rec.typeName !== 'asset') continue
+		const props = rec.props || {}
+		const src = typeof props.src === 'string' ? props.src : ''
+		const match = DATA_URL_RE.exec(src)
+		if (!match) continue
+		const mime = match[1]
+		const buf = Buffer.from(match[2], 'base64')
+		if (buf.length === 0) continue
+		const ext = (mime.split('/')[1] || 'bin').split('+')[0].replace(/[^a-z0-9]/gi, '')
+		const key = `${crypto.createHash('sha1').update(buf).digest('hex')}.${ext}`
+		await storeAsset(key, Readable.from(buf))
+		props.src = `/uploads/${key}`
+		if (!props.mimeType) props.mimeType = mime
+		rec.props = props
+		converted++
+	}
+	return converted
+}
 
 /** 파일 내용 해시 기반 버전. mtime/size 보다 정확하다. */
 function contentVersion(content: string): string {
@@ -105,8 +134,11 @@ app.get('/api/auth/status', async (req, res) => {
 
 app.addHook('onRequest', async (req, res) => {
 	const url = req.url || ''
-	if (!url.startsWith('/api/')) return
-	if (url.startsWith('/api/auth')) return
+	const protectedApi = url.startsWith('/api/') && !url.startsWith('/api/auth')
+	// 업로드 쓰기도 함께 보호한다(공개 버킷에 임의 파일을 밀어넣는 것 방지).
+	// 조회(GET/HEAD)는 이미지 렌더를 위해 열어 둔다.
+	const protectedUpload = url.startsWith('/uploads/') && req.method !== 'GET' && req.method !== 'HEAD'
+	if (!protectedApi && !protectedUpload) return
 	if (isTrustedLocalRequest(req)) return
 	if (!DRAW_APP_PASSWORD) {
 		res.status(503).send({ error: 'auth_not_configured', message: 'API 인증이 설정되지 않았습니다.' })
@@ -370,6 +402,18 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 		const baseVersion = typeof body.baseVersion === 'string' ? body.baseVersion.replace(/^"|"$/g, '') : null
 
 		const result = await withFileLock(fileName, async () => {
+			const incoming = body.snapshot || body.data || body
+			const incomingStore = (incoming && (incoming.store || (incoming.document && incoming.document.store))) as
+				| Record<string, any>
+				| undefined
+			if (incomingStore) {
+				try {
+					await externalizeInlineAssets(incomingStore)
+				} catch (err) {
+					console.warn('[Drawings] asset externalization failed:', err)
+				}
+			}
+
 			let currentVersion: string | null = null
 			try {
 				const currentContent = await fs.readFile(filePath, 'utf-8')
@@ -382,9 +426,11 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 				return { conflict: true as const, currentVersion }
 			}
 
-			const rawSnapshot = body.snapshot || body.data || body
-			const serialized = JSON.stringify(rawSnapshot, null, 2)
-			await fs.writeFile(filePath, serialized, 'utf-8')
+			const serialized = JSON.stringify(incoming, null, 2)
+			// 원자적 쓰기: 임시 파일에 쓰고 rename (중간 크래시로 파일이 깨지지 않게)
+			const tmpPath = `${filePath}.tmp-${process.pid}`
+			await fs.writeFile(tmpPath, serialized, 'utf-8')
+			await fs.rename(tmpPath, filePath)
 			return { conflict: false as const, newVersion: contentVersion(serialized) }
 		})
 
