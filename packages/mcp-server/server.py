@@ -263,13 +263,87 @@ def get_room_state(room_id: str, page_id: Optional[str] = None) -> Dict[str, Any
     if not result.get("ok"):
         return {"error": result.get("error", "unknown error"), "details": result}
 
+    shapes = result.get("shapes") or []
+    pages = result.get("availablePages") or result.get("available_pages") or []
+    total = result.get("total_shapes")
     return {
         "room_id": room_id,
         "page_id": page_id or "all",
-        "available_pages": result.get("available_pages", []),
-        "total_shapes": result.get("total_shapes", 0),
-        "shapes": result.get("shapes", []),
+        "available_pages": pages,
+        "total_shapes": total if isinstance(total, int) and total > 0 else len(shapes),
+        "shapes": shapes,
     }
+
+@mcp.tool()
+def list_pages(room_id: str) -> Dict[str, Any]:
+    """도면의 페이지 목록과 현재 페이지를 반환합니다.
+
+    라이브 브리지가 연결되어 있으면 editor.getPages() 결과를,
+    아니면 .tldr 파일의 page 레코드를 읽습니다.
+    """
+    args = {"action": "list_pages", "baseUrl": DRAW_BASE_URL, "roomId": room_id, "file": room_id}
+    result_json = _run_bridge(args)
+    try:
+        result = json.loads(result_json)
+    except json.JSONDecodeError:
+        return {"error": f"bridge 응답을 파싱할 수 없습니다: {result_json}"}
+    if not result.get("ok"):
+        return {"error": result.get("error", "unknown error"), "details": result}
+    pages = result.get("pages") or result.get("availablePages") or []
+    return {
+        "room_id": room_id,
+        "pages": pages,
+        "current_page_id": result.get("currentPageId"),
+    }
+
+
+@mcp.tool()
+def create_page(room_id: str, name: str = "Page") -> Dict[str, Any]:
+    """도면에 새 페이지를 추가하고 page_id를 반환합니다.
+
+    이후 add_sticky_note / add_wireframe_box / get_room_state 의 page_id 인자로 넘겨
+    페이지 단위로 보드를 분리할 수 있습니다.
+    """
+    args = {
+        "action": "create_page",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "file": room_id,
+        "name": name,
+    }
+    result_json = _run_bridge(args)
+    try:
+        result = json.loads(result_json)
+    except json.JSONDecodeError:
+        return {"error": f"bridge 응답을 파싱할 수 없습니다: {result_json}"}
+    if not result.get("ok"):
+        return {"error": result.get("error", "unknown error"), "details": result}
+    return {
+        "room_id": room_id,
+        "page_id": result.get("pageId"),
+        "pages": result.get("pages", []),
+    }
+
+
+@mcp.tool()
+def switch_page(room_id: str, page_id: str) -> Dict[str, Any]:
+    """캔버스의 현재 페이지를 전환합니다(라이브 브리지 연결 필요)."""
+    args = {
+        "action": "switch_page",
+        "baseUrl": DRAW_BASE_URL,
+        "roomId": room_id,
+        "file": room_id,
+        "pageId": page_id,
+    }
+    result_json = _run_bridge(args)
+    try:
+        result = json.loads(result_json)
+    except json.JSONDecodeError:
+        return {"error": f"bridge 응답을 파싱할 수 없습니다: {result_json}"}
+    if not result.get("ok"):
+        return {"error": result.get("error", "unknown error"), "details": result}
+    return {"room_id": room_id, "current_page_id": result.get("pageId", page_id)}
+
 
 @mcp.tool()
 def set_template_room(room_id: str, template_name: str) -> str:

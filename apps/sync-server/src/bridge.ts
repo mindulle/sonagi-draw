@@ -346,6 +346,40 @@ export function executeFileStoreFallback(action: string, args: any): any {
 		return { ok: true, shapeId, labelId, pageId: args.pageId || 'page:page', fallback: 'file-store' }
 	}
 
+	if (action === 'list_pages') {
+		const pages = Object.values(store)
+			.filter((r: any) => r && r.typeName === 'page')
+			.sort((a: any, b: any) => String(a.index).localeCompare(String(b.index)))
+			.map((p: any) => ({ id: p.id, name: p.name }))
+		return { ok: true, pages, currentPageId: pages[0]?.id ?? null, fallback: 'file-store' }
+	}
+
+	if (action === 'create_page') {
+		let lastPageIndex: string | null = null
+		for (const rec of Object.values(store)) {
+			const r = rec as any
+			if (!r || r.typeName !== 'page') continue
+			const index = String(r.index ?? '')
+			try {
+				validateIndexKey(index)
+			} catch {
+				continue
+			}
+			if (lastPageIndex === null || index > lastPageIndex) lastPageIndex = index
+		}
+		const pageIndex = getIndexBetween(lastPageIndex, null)
+		const pageId = `page:${randomUUID()}`
+		store[pageId] = {
+			id: pageId,
+			typeName: 'page',
+			name: args.name || 'Page',
+			index: pageIndex,
+			meta: {}
+		}
+		writeFileSync(filePath, JSON.stringify(doc, null, 2), 'utf-8')
+		return { ok: true, pageId, fallback: 'file-store' }
+	}
+
 	if (action === 'get_room_state' || action === 'get_page_shapes') {
 		const shapes = Object.values(store).filter((r: any) => r && r.typeName === 'shape')
 		const pages = Object.values(store)
@@ -358,6 +392,12 @@ export function executeFileStoreFallback(action: string, args: any): any {
 			availablePages: pages.length > 0 ? pages : [{ id: 'page:page', name: 'Page 1' }],
 			fallback: 'file-store'
 		}
+	}
+
+	if (action === 'switch_page') {
+		throw new Error(
+			'switch_page 는 라이브 브리지에서만 지원됩니다 (파일 저장소에는 "현재 페이지" 개념이 없음)'
+		)
 	}
 
 	if (action === 'push_to_inbox') {
