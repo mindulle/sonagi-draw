@@ -14,7 +14,7 @@
     "@sentry/node": "^10.66.0",
     "@sentry/profiling-node": "^10.66.0",
     "@sonagi-draw/schema": "workspace:*",
-    "@tldraw/sync-core": "^5.2.5",
+    "@tldraw/sync-core": "5.6.0",
     "@tldraw/utils": "5.6.0",
     "better-sqlite3": "^12.10.0",
     "dotenv": "^17.4.2",
