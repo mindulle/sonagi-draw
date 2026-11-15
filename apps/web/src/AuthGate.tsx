@@ -46,6 +46,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		}
 	}, [])
 
+	const logout = async () => {
+		try {
+			await fetch('/api/auth/logout', { method: 'POST' })
+		} catch {
+			// 쿠키 삭제는 서버에서 하지만, 실패해도 새로고침으로 상태를 다시 읽는다.
+		}
+		window.location.reload()
+	}
+
 	const submit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (submitting) return
@@ -73,15 +82,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		<>
 			{children}
 
-			{/* 읽기 전용 안내 + 로그인 진입점 */}
-			{state === 'anon' && !open && (
+			{/* 인증 상태 배지: 비로그인=로그인 진입점, 로그인=로그아웃 */}
+			{(state === 'anon' || state === 'authed') && !open && (
 				<button
-					onClick={openLogin}
-					title="편집하려면 로그인이 필요합니다"
+					onClick={state === 'authed' ? logout : openLogin}
+					title={state === 'authed' ? '로그아웃' : '편집하려면 로그인이 필요합니다'}
 					style={{
 						position: 'fixed',
 						left: 16,
-						bottom: 16,
+						bottom: 64,
 						zIndex: 999999,
 						display: 'flex',
 						alignItems: 'center',
@@ -94,11 +103,19 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 						fontSize: 12,
 						fontWeight: 600,
 						cursor: 'pointer',
-						boxShadow: '0 8px 20px -6px rgba(0,0,0,0.45)'
+						boxShadow: '0 8px 20px -6px rgba(0,0,0,0.45)',
+						opacity: state === 'authed' ? 0.5 : 1,
+						transition: 'opacity 150ms'
+					}}
+					onMouseEnter={(e) => {
+						e.currentTarget.style.opacity = '1'
+					}}
+					onMouseLeave={(e) => {
+						e.currentTarget.style.opacity = state === 'authed' ? '0.5' : '1'
 					}}
 				>
-					<span>🔒</span>
-					<span>읽기 전용 · 로그인</span>
+					<span>{state === 'authed' ? '🔓' : '🔒'}</span>
+					<span>{state === 'authed' ? '편집 가능 · 로그아웃' : '읽기 전용 · 로그인'}</span>
 				</button>
 			)}
 

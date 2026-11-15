@@ -112,19 +112,73 @@ function hasValidSession(req: any): boolean {
 	return Boolean(token) && token === sessionToken()
 }
 
+/**
+ * 로그인 시도 제한.
+ * Cloudflare 터널을 지나면 req.ip 가 127.0.0.1 로 뭉개지므로 실제 클라이언트 IP 를
+ * 헤더에서 먼저 찾는다. (cf-connecting-ip → x-forwarded-for → socket)
+ */
+const LOGIN_WINDOW_MS = 10 * 60_000
+const LOGIN_MAX_FAILURES = 5
+const loginAttempts = new Map<string, { failures: number; firstAt: number; blockedUntil: number }>()
+
+function clientKey(req: any): string {
+	const cf = req.headers['cf-connecting-ip']
+	if (typeof cf === 'string' && cf) return cf
+	const xff = req.headers['x-forwarded-for']
+	if (typeof xff === 'string' && xff) return xff.split(',')[0].trim()
+	return req.ip || req.socket?.remoteAddress || 'unknown'
+}
+
+function pruneLoginAttempts(now: number) {
+	for (const [key, entry] of loginAttempts) {
+		if (entry.blockedUntil < now && now - entry.firstAt > LOGIN_WINDOW_MS) loginAttempts.delete(key)
+	}
+}
+
 app.post('/api/auth', async (req, res) => {
 	const body = (req.body as any) || {}
 	if (!DRAW_APP_PASSWORD) {
 		res.status(503).send({ error: 'auth_not_configured', message: 'DRAW_APP_PASSWORD 가 설정되지 않았습니다.' })
 		return
 	}
+
+	const now = Date.now()
+	const key = clientKey(req)
+	if (loginAttempts.size > 500) pruneLoginAttempts(now)
+	const attempt = loginAttempts.get(key)
+	if (attempt && attempt.blockedUntil > now) {
+		const retry = Math.ceil((attempt.blockedUntil - now) / 1000)
+		res.header('Retry-After', String(retry))
+		res.status(429).send({ error: 'too_many_attempts', message: `시도가 너무 많습니다. ${retry}초 후 다시 시도하세요.` })
+		return
+	}
+
 	const ok = typeof body.password === 'string' && sha256(body.password) === sha256(DRAW_APP_PASSWORD)
 	if (!ok) {
+		const prev = attempt && now - attempt.firstAt < LOGIN_WINDOW_MS ? attempt : { failures: 0, firstAt: now, blockedUntil: 0 }
+		prev.failures += 1
+		if (prev.failures >= LOGIN_MAX_FAILURES) prev.blockedUntil = now + LOGIN_WINDOW_MS
+		loginAttempts.set(key, prev)
+		// 무차별 대입 속도를 떨어뜨리는 최소 지연
+		await new Promise((r) => setTimeout(r, 300))
+		if (prev.blockedUntil > now) {
+			res.header('Retry-After', String(Math.ceil(LOGIN_WINDOW_MS / 1000)))
+			res.status(429).send({ error: 'too_many_attempts', message: '시도가 너무 많습니다. 잠시 후 다시 시도하세요.' })
+			return
+		}
 		res.status(401).send({ error: 'invalid_password' })
 		return
 	}
+
+	loginAttempts.delete(key)
 	const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''
 	res.header('Set-Cookie', `${AUTH_COOKIE}=${sessionToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`)
+	res.send({ ok: true })
+})
+
+// 로그아웃: 쿠키 삭제. 인증 여부와 무관하게 항상 성공으로 응답한다.
+app.post('/api/auth/logout', async (_req, res) => {
+	res.header('Set-Cookie', `${AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`)
 	res.send({ ok: true })
 })
 
@@ -154,7 +208,9 @@ app.addHook('onRequest', async (req, res) => {
 	// 업로드 쓰기도 함께 보호한다(공개 버킷에 임의 파일을 밀어넣는 것 방지).
 	// 조회(GET/HEAD)는 이미지 렌더를 위해 열어 둔다.
 	const protectedUpload = url.startsWith('/uploads/') && req.method !== 'GET' && req.method !== 'HEAD'
-	if (!protectedApi && !protectedUpload) return
+	// room 모드의 실시간 동기화 소켓도 보호한다. (파일 도면과 별개 저장소)
+	const protectedRoom = url.startsWith('/connect/')
+	if (!protectedApi && !protectedUpload && !protectedRoom) return
 	if (isPublicRead(req)) return
 	if (isTrustedLocalRequest(req)) return
 	if (!DRAW_APP_PASSWORD) {
