@@ -30,12 +30,36 @@ DRAWINGS_DIR = "/home/ubuntu/llm-wiki/03_Resources/Drawings"
 BRIDGE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bridge", "canvas_bridge.mjs")
 DRAW_BASE_URL = os.environ.get("DRAW_BASE_URL", "http://127.0.0.1:3550/draw")
 
+MINIO_ENV_PATH = os.path.expanduser("~/.config/sonagi/minio.env")
+
+
+def load_minio_config() -> dict:
+    """MinIO 자격증명은 코드가 아니라 MINIO_ENV_PATH(600) 에서 읽는다. 환경변수가 우선."""
+    cfg = {"MINIO_ENDPOINT": "https://cdn.sonagi.space"}
+    try:
+        with open(MINIO_ENV_PATH, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                cfg[key.strip()] = value.strip().strip("'\"")
+    except OSError:
+        pass
+    for key in ("MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET"):
+        if os.environ.get(key):
+            cfg[key] = os.environ[key]
+    return cfg
+
+
+MINIO = load_minio_config()
+
 # MinIO (CDN) 클라이언트 설정
 s3_client = boto3.client(
     's3',
-    endpoint_url='https://cdn.sonagi.space',
-    aws_access_key_id='admin',
-    aws_secret_access_key='anki123456',
+    endpoint_url=MINIO["MINIO_ENDPOINT"],
+    aws_access_key_id=MINIO.get("MINIO_ACCESS_KEY", ""),
+    aws_secret_access_key=MINIO.get("MINIO_SECRET_KEY", ""),
     config=Config(signature_version='s3v4')
 )
 
