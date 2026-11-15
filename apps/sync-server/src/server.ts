@@ -132,13 +132,30 @@ app.get('/api/auth/status', async (req, res) => {
 	res.send({ configured: Boolean(DRAW_APP_PASSWORD), authenticated: hasValidSession(req) || isTrustedLocalRequest(req) })
 })
 
+/**
+ * 인증 없이 열어 두는 읽기 경로.
+ * - GET /api/drawings          : 도면 목록·본문 (읽기 공개)
+ * - GET /api/auth/status       : 로그인 상태 확인
+ * 브리지(/api/bridge/*)와 karakeep 프록시는 읽기라도 공개하지 않는다.
+ */
+const PUBLIC_READ_PATHS = new Set(['/api/drawings', '/api/auth/status'])
+
+function isPublicRead(req: any): boolean {
+	if (req.method !== 'GET' && req.method !== 'HEAD') return false
+	const pathname = String(req.url || '').split('?')[0]
+	return PUBLIC_READ_PATHS.has(pathname)
+}
+
 app.addHook('onRequest', async (req, res) => {
 	const url = req.url || ''
+	// 읽기는 공개, 쓰기·에이전트 브리지는 인증이 필요하다.
+	// 공개 GET 은 allowlist 로만 연다(브리지 상태/로그, karakeep 같은 내부 프록시는 제외).
 	const protectedApi = url.startsWith('/api/') && !url.startsWith('/api/auth')
 	// 업로드 쓰기도 함께 보호한다(공개 버킷에 임의 파일을 밀어넣는 것 방지).
 	// 조회(GET/HEAD)는 이미지 렌더를 위해 열어 둔다.
 	const protectedUpload = url.startsWith('/uploads/') && req.method !== 'GET' && req.method !== 'HEAD'
 	if (!protectedApi && !protectedUpload) return
+	if (isPublicRead(req)) return
 	if (isTrustedLocalRequest(req)) return
 	if (!DRAW_APP_PASSWORD) {
 		res.status(503).send({ error: 'auth_not_configured', message: 'API 인증이 설정되지 않았습니다.' })
