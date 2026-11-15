@@ -1,5 +1,6 @@
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
+import { AuthGate } from './AuthGate.tsx'
 import './index.css'
 import { DiscordSDK } from '@discord/embedded-app-sdk'
 import { initClientDiagnostics } from './diagnostics'
@@ -25,7 +26,9 @@ async function init() {
   }
 
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <App />
+    <AuthGate>
+      <App />
+    </AuthGate>
   )
 }
 

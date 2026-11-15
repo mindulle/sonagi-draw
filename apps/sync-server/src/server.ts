@@ -22,6 +22,7 @@ import { unfurl } from './unfurl'
 
 import fs from 'fs/promises'
 import path from 'path'
+import crypto from 'node:crypto'
 
 
 
@@ -32,6 +33,82 @@ const PORT = 5858
 const app = fastify()
 app.register(websocketPlugin)
 app.register(cors, { origin: '*' })
+
+// ─────────────────────────────────────────────────────────────
+// API 인증 게이트
+// Cloudflare 터널도 로컬(127.0.0.1)로 보이기 때문에, "루프백 + CF 헤더 없음"만 신뢰한다.
+// - 로컬 에이전트(MCP, Playwright): 쿠키 없이 통과
+// - 외부 브라우저: /auth 로 비밀번호 로그인 후 세션 쿠키 필요
+// ─────────────────────────────────────────────────────────────
+const DRAW_APP_PASSWORD = process.env.DRAW_APP_PASSWORD || ''
+const DRAW_SESSION_SECRET = process.env.DRAW_SESSION_SECRET || ''
+const AUTH_COOKIE = 'draw_session'
+
+function sha256(value: string): string {
+	return crypto.createHash('sha256').update(value).digest('hex')
+}
+
+function sessionToken(): string {
+	return crypto.createHmac('sha256', DRAW_SESSION_SECRET || 'insecure').update(sha256(DRAW_APP_PASSWORD)).digest('hex')
+}
+
+function parseCookies(header?: string): Record<string, string> {
+	const out: Record<string, string> = {}
+	if (!header) return out
+	for (const part of header.split(';')) {
+		const idx = part.indexOf('=')
+		if (idx === -1) continue
+		out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim())
+	}
+	return out
+}
+
+function isTrustedLocalRequest(req: any): boolean {
+	const ip = req.ip || req.socket?.remoteAddress || ''
+	const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.startsWith('127.')
+	const viaCloudflare = Boolean(req.headers['cf-ray'] || req.headers['cf-connecting-ip'])
+	return loopback && !viaCloudflare
+}
+
+function hasValidSession(req: any): boolean {
+	const token = parseCookies(req.headers.cookie)[AUTH_COOKIE]
+	return Boolean(token) && token === sessionToken()
+}
+
+app.post('/api/auth', async (req, res) => {
+	const body = (req.body as any) || {}
+	if (!DRAW_APP_PASSWORD) {
+		res.status(503).send({ error: 'auth_not_configured', message: 'DRAW_APP_PASSWORD 가 설정되지 않았습니다.' })
+		return
+	}
+	const ok = typeof body.password === 'string' && sha256(body.password) === sha256(DRAW_APP_PASSWORD)
+	if (!ok) {
+		res.status(401).send({ error: 'invalid_password' })
+		return
+	}
+	const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''
+	res.header('Set-Cookie', `${AUTH_COOKIE}=${sessionToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`)
+	res.send({ ok: true })
+})
+
+app.get('/api/auth/status', async (req, res) => {
+	res.send({ configured: Boolean(DRAW_APP_PASSWORD), authenticated: hasValidSession(req) || isTrustedLocalRequest(req) })
+})
+
+app.addHook('onRequest', async (req, res) => {
+	const url = req.url || ''
+	if (!url.startsWith('/api/')) return
+	if (url.startsWith('/api/auth')) return
+	if (isTrustedLocalRequest(req)) return
+	if (!DRAW_APP_PASSWORD) {
+		res.status(503).send({ error: 'auth_not_configured', message: 'API 인증이 설정되지 않았습니다.' })
+		return
+	}
+	if (hasValidSession(req)) return
+	res.status(401).send({ error: 'unauthorized' })
+})
+
+
 
 app.register(async (app) => {
 	// This is the main entrypoint for the multiplayer sync
