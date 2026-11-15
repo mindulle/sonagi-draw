@@ -841,7 +841,9 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
             .then(res => {
                 if (!res.ok) throw new Error(`서버에서 도면을 찾을 수 없습니다. (HTTP ${res.status})`)
                 const etag = res.headers.get('etag')
-                if (etag) fileVersionRef.current = etag.replace(/^"|"$/g, '')
+                // nginx gzip 을 거치면 ETag 가 약한 형식(W/"...")으로 바뀐다.
+                // W/ 를 벗겨내지 않으면 baseVersion 비교가 항상 실패해 저장이 409 로 막힌다.
+                if (etag) fileVersionRef.current = etag.replace(/^W\//, '').replace(/^"|"$/g, '')
                 return res.json()
             })
             .then(rawJson => {
