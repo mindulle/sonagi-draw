@@ -14,6 +14,7 @@ import { CustomMainMenu } from "./CustomMainMenu"
 import { AssetDrawer } from "./AssetDrawer"
 import { JambotQuickGestures } from "./JambotQuickGestures"
 import { LocalBridgeReceiver } from "./LocalBridgeReceiver"
+import { requireLogin } from "./AuthGate"
 import { normalizeTldrawSnapshot } from "./snapshotNormalization"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -716,6 +717,10 @@ async function externalizeAssets(editor: any, store: Record<string, any>): Promi
             const ext = (mime.split('/')[1] || 'bin').split('+')[0].replace(/[^a-z0-9]/gi, '')
             const key = `${bytesToHex(digest)}.${ext}`
             const put = await fetch(`/uploads/${key}`, { method: 'PUT', body: bytes })
+            if (put.status === 401) {
+                requireLogin()
+                break
+            }
             if (!put.ok) {
                 console.warn('[AutoSave] asset upload failed:', put.status)
                 continue
@@ -808,6 +813,8 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const [saveBlocked, setSaveBlocked] = useState(false)
     // 마지막으로 저장에 성공한 스냅샷 서명(변경 없으면 POST 자체를 생략한다)
     const lastSavedRef = useRef<string | null>(null)
+    // 도면 로드 직후의 자동 저장 이벤트(에셋 로드 등)까지 로그인 창을 띄우지 않기 위한 시각
+    const lastLoadAtRef = useRef<number>(0)
     const saveConflictRef = useRef<boolean>(false)
     const pendingLoadAbortRef = useRef<AbortController | null>(null)
 
@@ -863,6 +870,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 requestAnimationFrame(() => {
                     setTimeout(() => {
                         isLoadingRef.current = false
+                        lastLoadAtRef.current = Date.now()
                         try {
                             const bounds = editorRef.current.getViewportScreenBounds()
                             if (bounds && bounds.width > 50 && bounds.height > 50) {
@@ -1106,6 +1114,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                     // 직전 저장과 내용이 같으면 네트워크·디스크를 건드리지 않는다.
                     if (signature === lastSavedRef.current) return
 
+                    // 비로그인 상태에서 도면을 연 직후 올라오는 자동 저장(에셋 로드 등)은
+                    // 어차피 401 이므로 요청 자체를 보내지 않는다.
+                    const authed = Boolean((window as any).__drawAuth?.isAuthed)
+                    if (!authed && Date.now() - lastLoadAtRef.current < 5000) return
+
                     try {
                         const res = await fetch('/api/drawings', {
                             method: 'POST',
@@ -1117,6 +1130,15 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                                 baseVersion: fileVersionRef.current || undefined
                             })
                         })
+                        if (res.status === 401) {
+                            // 읽기는 공개, 쓰기는 로그인 필요. 편집 내용은 화면에 남아 있다.
+                            // 도면을 연 직후(에셋 로드 등) 발생하는 자동 저장까지 로그인 창을 띄우지 않는다.
+                            if (Date.now() - lastLoadAtRef.current > 5000) {
+                                requireLogin()
+                                showToast('🔒 저장하려면 로그인이 필요합니다.')
+                            }
+                            return
+                        }
                         if (res.status === 409) {
                             saveConflictRef.current = true
                             setSaveBlocked(true)
