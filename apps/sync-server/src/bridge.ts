@@ -7,6 +7,9 @@ import { getIndexBetween, validateIndexKey } from '@tldraw/utils'
 /** tldraw v5 기본 prop. file-store fallback 이 일부 prop 만 채워 loadSnapshot 이 깨지는 것을 막는다. */
 const SHAPE_DEFAULTS: Record<string, Record<string, unknown>> = {
 	note: {
+		color: 'black',
+		richText: {'type': 'doc', 'content': [{'type': 'paragraph'}]},
+		size: 'm',
 		font: 'draw',
 		align: 'middle',
 		verticalAlign: 'middle',
@@ -18,26 +21,33 @@ const SHAPE_DEFAULTS: Record<string, Record<string, unknown>> = {
 		textLastEditedBy: null
 	},
 	geo: {
+		w: 100,
+		h: 100,
+		geo: 'rectangle',
+		dash: 'draw',
+		growY: 0,
+		url: '',
+		scale: 1,
+		flipX: false,
+		flipY: false,
+		color: 'black',
+		labelColor: 'black',
+		fill: 'none',
+		size: 'm',
+		font: 'draw',
 		align: 'middle',
 		verticalAlign: 'middle',
-		color: 'black',
-		dash: 'draw',
-		fill: 'none',
-		font: 'draw',
-		labelColor: 'black',
-		growY: 0,
-		scale: 1,
-		url: '',
-		flipX: false,
-		flipY: false
+		richText: {'type': 'doc', 'content': [{'type': 'paragraph'}]}
 	},
 	text: {
-		autoSize: true,
 		color: 'black',
-		font: 'draw',
-		scale: 1,
 		size: 'm',
-		textAlign: 'start'
+		w: 8,
+		font: 'draw',
+		textAlign: 'start',
+		autoSize: true,
+		scale: 1,
+		richText: {'type': 'doc', 'content': [{'type': 'paragraph'}]}
 	}
 }
 
