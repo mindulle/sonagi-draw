@@ -741,6 +741,9 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const editorRef = useRef<any>(null)
     const isLoadingRef = useRef<boolean>(false)
     const autoSaveTimerRef = useRef<any>(null)
+    // 파일 버전(ETag) 기반 낙관적 동시성 제어: 다른 탭/에이전트가 먼저 저장하면 덮어쓰지 않는다.
+    const fileVersionRef = useRef<string | null>(null)
+    const saveConflictRef = useRef<boolean>(false)
     const pendingLoadAbortRef = useRef<AbortController | null>(null)
 
     const showToast = useCallback((msg: string) => {
@@ -764,9 +767,14 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
         isLoadingRef.current = true
         setActiveFileName(fileName)
 
+        saveConflictRef.current = false
+        fileVersionRef.current = null
+
         fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`, { signal: abortController.signal })
             .then(res => {
                 if (!res.ok) throw new Error(`서버에서 도면을 찾을 수 없습니다. (HTTP ${res.status})`)
+                const etag = res.headers.get('etag')
+                if (etag) fileVersionRef.current = etag.replace(/^"|"$/g, '')
                 return res.json()
             })
             .then(rawJson => {
@@ -1018,15 +1026,34 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 // 모든 리더(파일 fallback, 복구 스크립트)가 이해하는 TLStoreSnapshot 형태로 저장한다.
                 const payload = { schema: documentSnapshot.schema, store }
 
+                if (saveConflictRef.current) return
+
                 fetch('/api/drawings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         file: currentFileRef.current,
                         data: payload,
-                        snapshot: payload
+                        snapshot: payload,
+                        baseVersion: fileVersionRef.current || undefined
                     })
-                }).catch(console.error)
+                })
+                    .then(async (res) => {
+                        if (res.status === 409) {
+                            saveConflictRef.current = true
+                            const body = await res.json().catch(() => ({} as any))
+                            console.warn('[AutoSave] Conflict detected — auto-save paused:', body?.message)
+                            showToast('⚠️ 다른 곳에서 이 도면을 먼저 수정했습니다. 새로고침 후 이어서 작업하세요.')
+                            return
+                        }
+                        if (res.ok) {
+                            const body = await res.json().catch(() => ({} as any))
+                            if (body && typeof body.version === 'string') {
+                                fileVersionRef.current = body.version
+                            }
+                        }
+                    })
+                    .catch(console.error)
             }, 2000)
         })
     }, [loadFile])

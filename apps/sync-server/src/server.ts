@@ -124,7 +124,11 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 					return
 				}
 			}
+			const stat = await fs.stat(filePath)
+			const version = `${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}`
 			const content = await fs.readFile(filePath, 'utf-8')
+			res.header('ETag', `"${version}"`)
+			res.header('Cache-Control', 'no-store')
 			res.header('Content-Type', 'application/json').send(content)
 			return
 		}
@@ -277,9 +281,36 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 			filePath = path.join(DRAWINGS_DIR, `${safeFileName}.tldr`)
 		}
 
+		// 낙관적 동시성 제어: 클라이언트가 읽은 버전(baseVersion)과 현재 파일 버전이 다르면
+		// 다른 탭/에이전트가 먼저 저장한 것이므로 덮어쓰지 않고 409 를 반환한다.
+		const baseVersion = typeof body.baseVersion === 'string' ? body.baseVersion.replace(/^"|"$/g, '') : null
+		let currentVersion: string | null = null
+		try {
+			const stat = await fs.stat(filePath)
+			currentVersion = `${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}`
+		} catch {
+			currentVersion = null
+		}
+
+		if (baseVersion && currentVersion && baseVersion !== currentVersion) {
+			res.status(409).send({
+				error: 'conflict',
+				message: '파일이 다른 곳에서 먼저 수정되었습니다. 새로고침 후 다시 시도하세요.',
+				currentVersion
+			})
+			return
+		}
+
 		const rawSnapshot = body.snapshot || body.data || body
 		await fs.writeFile(filePath, JSON.stringify(rawSnapshot, null, 2), 'utf-8')
-		res.send({ success: true, name: path.basename(filePath, '.tldr') })
+		const stat = await fs.stat(filePath)
+		const newVersion = `${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}`
+		res.header('ETag', `"${newVersion}"`)
+		res.send({
+			success: true,
+			name: path.basename(filePath, '.tldr'),
+			version: newVersion
+		})
 	})
 
 	// [Agentic Injection API] Safe REST Endpoint for Agent/MCP
