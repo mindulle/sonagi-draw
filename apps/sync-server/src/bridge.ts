@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { RawData } from 'ws'
@@ -80,6 +80,7 @@ export interface BridgeClient {
 	clientType: string
 	currentFile?: string
 	currentRoomId?: string
+	buildId?: string
 	lastSeen: number
 }
 
@@ -138,6 +139,7 @@ export function registerBridgeClient(socket: any, query: Record<string, any> = {
 		clientType: query.clientType || 'web',
 		currentFile: query.file ? String(query.file).replace(/\.tldr$/, '') : undefined,
 		currentRoomId: query.roomId ? String(query.roomId) : undefined,
+		buildId: query.buildId ? String(query.buildId) : undefined,
 		lastSeen: Date.now()
 	}
 
@@ -157,6 +159,7 @@ export function registerBridgeClient(socket: any, query: Record<string, any> = {
 			if (msg.type === 'status_update') {
 				if (msg.currentFile) client.currentFile = String(msg.currentFile).replace(/\.tldr$/, '')
 				if (msg.currentRoomId) client.currentRoomId = String(msg.currentRoomId)
+				if (msg.buildId) client.buildId = String(msg.buildId)
 				client.lastSeen = Date.now()
 				return
 			}
@@ -188,12 +191,21 @@ export function getConnectedClientsCount(): number {
 	return clients.size
 }
 
-export function getConnectedClients(): Array<{ id: string; clientType: string; currentFile?: string; currentRoomId?: string }> {
+export function getConnectedClients(): Array<{
+	id: string
+	clientType: string
+	currentFile?: string
+	currentRoomId?: string
+	buildId?: string
+	lastSeen: number
+}> {
 	return Array.from(clients.values()).map((c) => ({
 		id: c.id,
 		clientType: c.clientType,
 		currentFile: c.currentFile,
-		currentRoomId: c.currentRoomId
+		currentRoomId: c.currentRoomId,
+		buildId: c.buildId,
+		lastSeen: c.lastSeen
 	}))
 }
 
@@ -207,18 +219,19 @@ export async function dispatchToClient(action: string, params: any, timeoutMs = 
 	const targetFile = params.file ? String(params.file).replace(/\.tldr$/, '') : null
 	const targetRoom = params.roomId ? String(params.roomId) : null
 
-	let client: BridgeClient | undefined
+	const open = Array.from(clients.values()).filter((c) => c.socket.readyState === 1)
 
-	if (targetFile) {
-		client = Array.from(clients.values()).find((c) => c.currentFile === targetFile)
-	} else if (targetRoom) {
-		client = Array.from(clients.values()).find((c) => c.currentRoomId === targetRoom)
-	}
+	const matching = open.filter((c) => {
+		if (targetFile && c.currentFile !== targetFile) return false
+		if (targetRoom && c.currentRoomId !== targetRoom) return false
+		return true
+	})
 
-	// Fallback to any connected client if no exact match found
-	if (!client) {
-		client = Array.from(clients.values())[0]
-	}
+	// 같은 파일에 여러 탭이 붙어 있으면 "가장 최근에 신호를 보낸" 클라이언트를 쓴다.
+	// (오래된 번들을 들고 있는 탭이 첫 번째라는 이유로 선택되면 저장이 실패한다)
+	const pool = matching.length > 0 ? matching : open
+	pool.sort((a, b) => b.lastSeen - a.lastSeen)
+	const client: BridgeClient | undefined = pool[0]
 
 	if (!client || client.socket.readyState !== 1 /* OPEN */) {
 		return null
@@ -456,6 +469,28 @@ export function executeFileStoreFallback(action: string, args: any): any {
  * Primary entry point for Local API Bridge command execution.
  * Tries live WebSocket client first. If none available, falls back to direct store execution.
  */
+const MUTATING_ACTIONS = new Set([
+	'add_sticky_note',
+	'add_wireframe_box',
+	'create_page',
+	'push_to_inbox',
+	'generate_moodboard_layout'
+])
+
+/** 라이브 클라이언트 저장(자동 저장)이 실제로 파일에 반영됐는지 mtime 으로 확인한다. */
+async function waitForFileChange(filePath: string, beforeMtime: number, timeoutMs = 5000): Promise<boolean> {
+	const deadline = Date.now() + timeoutMs
+	while (Date.now() < deadline) {
+		await new Promise((r) => setTimeout(r, 250))
+		try {
+			if (existsSync(filePath) && statSync(filePath).mtimeMs > beforeMtime) return true
+		} catch {
+			// ignore and retry
+		}
+	}
+	return false
+}
+
 export async function executeBridgeCommand(args: any): Promise<any> {
 	const action = args.action
 	if (!action) {
@@ -466,7 +501,21 @@ export async function executeBridgeCommand(args: any): Promise<any> {
 	try {
 		const clientResult = await dispatchToClient(action, args, 3000)
 		if (clientResult) {
-			return { ok: true, ...clientResult, execution: 'live-client' }
+			// 라이브 클라이언트는 브라우저에서 자동 저장(debounce 2s)을 거쳐 파일에 반영된다.
+			// 성공 메시지만 믿지 않고 파일 mtime 변화를 확인해 saved 로 알려준다.
+			let saved: boolean | undefined
+			const file = args.file ? String(args.file).replace(/\.tldr$/, '') : ''
+			const filePath = file ? join(DRAWINGS_DIR, `${file}.tldr`) : ''
+			if (filePath && MUTATING_ACTIONS.has(action)) {
+				const before = existsSync(filePath) ? statSync(filePath).mtimeMs : 0
+				saved = await waitForFileChange(filePath, before, 5000)
+			}
+			return {
+				ok: true,
+				...clientResult,
+				execution: 'live-client',
+				...(saved === undefined ? {} : { saved })
+			}
 		}
 	} catch (err: any) {
 		console.warn(`[Bridge] Client dispatch failed (${err?.message || err}), attempting direct store fallback`)
