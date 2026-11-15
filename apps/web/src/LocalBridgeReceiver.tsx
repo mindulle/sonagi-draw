@@ -56,6 +56,23 @@ export function executeEditorAction(editor: Editor, action: string, params: any 
 		return { shapeId, labelId, pageId: editor.getCurrentPageId() }
 	}
 
+	if (action === 'create_page') {
+		const pageId = editor.createPage({ name: params.name || 'Page' })
+		return { pageId, pages: editor.getPages().map((p) => ({ id: p.id, name: p.name })) }
+	}
+
+	if (action === 'list_pages') {
+		return {
+			pages: editor.getPages().map((p) => ({ id: p.id, name: p.name })),
+			currentPageId: editor.getCurrentPageId()
+		}
+	}
+
+	if (action === 'switch_page') {
+		editor.setCurrentPage(params.pageId)
+		return { pageId: editor.getCurrentPageId() }
+	}
+
 	if (action === 'create_shapes') {
 		editor.createShapes(params.shapes || [])
 		return { createdCount: params.shapes?.length || 0 }
