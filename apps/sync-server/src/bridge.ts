@@ -2,7 +2,13 @@ import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { RawData } from 'ws'
-import { getIndexBetween, validateIndexKey } from '@tldraw/utils'
+import { getIndexBetween } from '@tldraw/utils'
+
+/** tldraw fractional index 최소 검증 (5.6 에서 validateIndexKey 가 export 되지 않음). */
+function isValidIndexKey(key: string): boolean {
+	return /^a[0-9a-zA-Z]+$/.test(key) && !key.endsWith('0')
+}
+import { withFileLock } from './fileLock'
 
 /** tldraw v5 기본 prop. file-store fallback 이 일부 prop 만 채워 loadSnapshot 이 깨지는 것을 막는다. */
 const SHAPE_DEFAULTS: Record<string, Record<string, unknown>> = {
@@ -62,14 +68,10 @@ function indexAfterLast(store: Record<string, any>, parentId: string): string {
 		if (!rec || rec.typeName !== 'shape') continue
 		if ((rec.parentId ?? 'page:page') !== parentId) continue
 		const index = String(rec.index ?? '')
-		try {
-			validateIndexKey(index)
-		} catch {
-			continue
-		}
+		if (!isValidIndexKey(index)) continue
 		if (last === null || index > last) last = index
 	}
-	return getIndexBetween(last, null)
+	return getIndexBetween(last as any, null)
 }
 
 export const DRAWINGS_DIR = process.env.DRAWINGS_DIR || '/home/ubuntu/llm-wiki/03_Resources/Drawings'
@@ -383,14 +385,10 @@ export function executeFileStoreFallback(action: string, args: any): any {
 			const r = rec as any
 			if (!r || r.typeName !== 'page') continue
 			const index = String(r.index ?? '')
-			try {
-				validateIndexKey(index)
-			} catch {
-				continue
-			}
+			if (!isValidIndexKey(index)) continue
 			if (lastPageIndex === null || index > lastPageIndex) lastPageIndex = index
 		}
-		const pageIndex = getIndexBetween(lastPageIndex, null)
+		const pageIndex = getIndexBetween(lastPageIndex as any, null)
 		const pageId = `page:${randomUUID()}`
 		store[pageId] = {
 			id: pageId,
@@ -521,6 +519,7 @@ export async function executeBridgeCommand(args: any): Promise<any> {
 		console.warn(`[Bridge] Client dispatch failed (${err?.message || err}), attempting direct store fallback`)
 	}
 
-	// 2. Direct store fallback
-	return executeFileStoreFallback(action, args)
+	// 2. Direct store fallback — 같은 파일에 대한 read-modify-write 를 직렬화한다
+	const lockKey = args.file ? String(args.file).replace(/\.tldr$/, '') : String(args.roomId || action)
+	return withFileLock(lockKey, () => executeFileStoreFallback(action, args))
 }

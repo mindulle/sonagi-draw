@@ -23,6 +23,7 @@ import { unfurl } from './unfurl'
 import fs from 'fs/promises'
 import path from 'path'
 import crypto from 'node:crypto'
+import { withFileLock } from './fileLock'
 
 
 
@@ -33,6 +34,13 @@ const PORT = 5858
 const app = fastify()
 app.register(websocketPlugin)
 app.register(cors, { origin: '*' })
+
+/** 파일 내용 해시 기반 버전. mtime/size 보다 정확하다. */
+function contentVersion(content: string): string {
+	return `${crypto.createHash('sha1').update(content).digest('hex').slice(0, 16)}-${content.length.toString(36)}`
+}
+
+
 
 // ─────────────────────────────────────────────────────────────
 // API 인증 게이트
@@ -201,9 +209,8 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 					return
 				}
 			}
-			const stat = await fs.stat(filePath)
-			const version = `${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}`
 			const content = await fs.readFile(filePath, 'utf-8')
+			const version = contentVersion(content)
 			res.header('ETag', `"${version}"`)
 			res.header('Cache-Control', 'no-store')
 			res.header('Content-Type', 'application/json').send(content)
@@ -358,35 +365,43 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 			filePath = path.join(DRAWINGS_DIR, `${safeFileName}.tldr`)
 		}
 
-		// 낙관적 동시성 제어: 클라이언트가 읽은 버전(baseVersion)과 현재 파일 버전이 다르면
-		// 다른 탭/에이전트가 먼저 저장한 것이므로 덮어쓰지 않고 409 를 반환한다.
+		// 낙관적 동시성 제어: 클라이언트가 읽은 버전(baseVersion)과 현재 파일 내용 해시가
+		// 다르면 다른 주체가 먼저 저장한 것이므로 덮어쓰지 않고 409 를 반환한다.
 		const baseVersion = typeof body.baseVersion === 'string' ? body.baseVersion.replace(/^"|"$/g, '') : null
-		let currentVersion: string | null = null
-		try {
-			const stat = await fs.stat(filePath)
-			currentVersion = `${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}`
-		} catch {
-			currentVersion = null
-		}
 
-		if (baseVersion && currentVersion && baseVersion !== currentVersion) {
+		const result = await withFileLock(fileName, async () => {
+			let currentVersion: string | null = null
+			try {
+				const currentContent = await fs.readFile(filePath, 'utf-8')
+				currentVersion = contentVersion(currentContent)
+			} catch {
+				currentVersion = null
+			}
+
+			if (baseVersion && currentVersion && baseVersion !== currentVersion) {
+				return { conflict: true as const, currentVersion }
+			}
+
+			const rawSnapshot = body.snapshot || body.data || body
+			const serialized = JSON.stringify(rawSnapshot, null, 2)
+			await fs.writeFile(filePath, serialized, 'utf-8')
+			return { conflict: false as const, newVersion: contentVersion(serialized) }
+		})
+
+		if (result.conflict) {
 			res.status(409).send({
 				error: 'conflict',
 				message: '파일이 다른 곳에서 먼저 수정되었습니다. 새로고침 후 다시 시도하세요.',
-				currentVersion
+				currentVersion: result.currentVersion
 			})
 			return
 		}
 
-		const rawSnapshot = body.snapshot || body.data || body
-		await fs.writeFile(filePath, JSON.stringify(rawSnapshot, null, 2), 'utf-8')
-		const stat = await fs.stat(filePath)
-		const newVersion = `${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}`
-		res.header('ETag', `"${newVersion}"`)
+		res.header('ETag', `"${result.newVersion}"`)
 		res.send({
 			success: true,
 			name: path.basename(filePath, '.tldr'),
-			version: newVersion
+			version: result.newVersion
 		})
 	})
 

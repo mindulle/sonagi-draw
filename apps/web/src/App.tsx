@@ -743,6 +743,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
     const autoSaveTimerRef = useRef<any>(null)
     // 파일 버전(ETag) 기반 낙관적 동시성 제어: 다른 탭/에이전트가 먼저 저장하면 덮어쓰지 않는다.
     const fileVersionRef = useRef<string | null>(null)
+    const [saveBlocked, setSaveBlocked] = useState(false)
     const saveConflictRef = useRef<boolean>(false)
     const pendingLoadAbortRef = useRef<AbortController | null>(null)
 
@@ -769,6 +770,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
 
         saveConflictRef.current = false
         fileVersionRef.current = null
+        setSaveBlocked(false)
 
         fetch(`/api/drawings?file=${encodeURIComponent(fileName)}`, { signal: abortController.signal })
             .then(res => {
@@ -1041,6 +1043,7 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                     .then(async (res) => {
                         if (res.status === 409) {
                             saveConflictRef.current = true
+                            setSaveBlocked(true)
                             const body = await res.json().catch(() => ({} as any))
                             console.warn('[AutoSave] Conflict detected — auto-save paused:', body?.message)
                             showToast('⚠️ 다른 곳에서 이 도면을 먼저 수정했습니다. 새로고침 후 이어서 작업하세요.')
@@ -1083,6 +1086,44 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                 >
                     <span>✓</span>
                     <span>{toastMessage}</span>
+                </div>
+            )}
+
+            {/* 저장 충돌 배너 (자동 저장 중단 상태) */}
+            {saveBlocked && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 64,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 999999,
+                        background: '#7f1d1d',
+                        color: '#fef2f2',
+                        padding: '10px 16px',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.35)'
+                    }}
+                >
+                    <span>⚠️ 다른 곳에서 먼저 수정되어 자동 저장이 멈췄습니다.</span>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{
+                            background: '#fef2f2',
+                            color: '#7f1d1d',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '4px 10px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        새로고침
+                    </button>
                 </div>
             )}
 
