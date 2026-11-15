@@ -1,6 +1,40 @@
 import { useEffect, useState } from 'react'
 
-type AuthState = 'checking' | 'anon' | 'authed'
+export type AuthState = 'checking' | 'anon' | 'authed'
+
+// 여러 컴포넌트(에디터 readonly 제어 포함)가 같은 인증 상태를 봐야 해서 모듈 스코프에 둔다.
+let currentAuthState: AuthState = 'checking'
+const authListeners = new Set<(state: AuthState) => void>()
+
+export function getAuthState(): AuthState {
+	return currentAuthState
+}
+
+function setAuthState(next: AuthState) {
+	currentAuthState = next
+	authListeners.forEach((fn) => fn(next))
+}
+
+export function subscribeAuth(fn: (state: AuthState) => void): () => void {
+	authListeners.add(fn)
+	return () => authListeners.delete(fn)
+}
+
+/** 비로그인 상태에서는 캔버스를 읽기 전용으로 잠근다. */
+export function applyAuthReadOnly(editor: any) {
+	if (!editor || typeof editor.updateInstanceState !== 'function') return
+	try {
+		editor.updateInstanceState({ isReadonly: getAuthState() !== 'authed' })
+	} catch {
+		// 에디터가 아직 초기화되지 않았으면 다음 상태 변경에서 다시 적용된다.
+	}
+}
+
+/** readonly 를 현재 상태로 맞추고, 이후 변경도 따라가게 구독한다. */
+export function watchAuthReadOnly(editor: any): () => void {
+	applyAuthReadOnly(editor)
+	return subscribeAuth(() => applyAuthReadOnly(editor))
+}
 
 /**
  * 인증 UI.
@@ -36,10 +70,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 			.then((res) => res.json())
 			.then((data) => {
 				if (cancelled) return
-				setState(data && data.authenticated ? 'authed' : 'anon')
+				const next: AuthState = data && data.authenticated ? 'authed' : 'anon'
+				setState(next)
+				setAuthState(next)
 			})
 			.catch(() => {
-				if (!cancelled) setState('anon')
+				if (cancelled) return
+				setState('anon')
+				setAuthState('anon')
 			})
 		return () => {
 			cancelled = true
@@ -82,11 +120,40 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		<>
 			{children}
 
-			{/* 인증 상태 배지: 비로그인=로그인 진입점, 로그인=로그아웃 */}
-			{(state === 'anon' || state === 'authed') && !open && (
+			{/* 비로그인: 상단 고정 안내 (캔버스가 읽기 전용이라는 사실을 계속 알린다) */}
+			{state === 'anon' && !open && (
 				<button
-					onClick={state === 'authed' ? logout : openLogin}
-					title={state === 'authed' ? '로그아웃' : '편집하려면 로그인이 필요합니다'}
+					onClick={openLogin}
+					style={{
+						position: 'fixed',
+						top: 16,
+						left: '50%',
+						transform: 'translateX(-50%)',
+						zIndex: 999999,
+						display: 'flex',
+						alignItems: 'center',
+						gap: 8,
+						background: '#0f172a',
+						color: '#e2e8f0',
+						border: '1px solid #1f2937',
+						borderRadius: 999,
+						padding: '9px 16px',
+						fontSize: 12.5,
+						fontWeight: 600,
+						cursor: 'pointer',
+						boxShadow: '0 10px 25px -8px rgba(0,0,0,0.5)'
+					}}
+				>
+					<span>🔒</span>
+					<span>읽기 전용 — 편집하려면 로그인</span>
+				</button>
+			)}
+
+			{/* 로그인 상태: 좌하단 muted 배지(로그아웃) */}
+			{state === 'authed' && !open && (
+				<button
+					onClick={logout}
+					title="로그아웃"
 					style={{
 						position: 'fixed',
 						left: 16,
@@ -104,18 +171,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 						fontWeight: 600,
 						cursor: 'pointer',
 						boxShadow: '0 8px 20px -6px rgba(0,0,0,0.45)',
-						opacity: state === 'authed' ? 0.5 : 1,
+						opacity: 0.45,
 						transition: 'opacity 150ms'
 					}}
 					onMouseEnter={(e) => {
 						e.currentTarget.style.opacity = '1'
 					}}
 					onMouseLeave={(e) => {
-						e.currentTarget.style.opacity = state === 'authed' ? '0.5' : '1'
+						e.currentTarget.style.opacity = '0.45'
 					}}
 				>
-					<span>{state === 'authed' ? '🔓' : '🔒'}</span>
-					<span>{state === 'authed' ? '편집 가능 · 로그아웃' : '읽기 전용 · 로그인'}</span>
+					<span>🔓</span>
+					<span>편집 가능 · 로그아웃</span>
 				</button>
 			)}
 
@@ -204,10 +271,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 	)
 }
 
-/** 저장/업로드가 401 을 받았을 때 로그인 모달을 띄운다. */
-export function requireLogin() {
+/**
+ * 저장/업로드가 401 을 받았을 때 로그인 모달을 띄운다.
+ * 비로그인 상태에서는 캔버스가 읽기 전용이라 저장 시도 자체가 없고,
+ * 상단 배너가 안내를 담당하므로 모달을 띄우지 않는다(세션 만료 시에만 띄운다).
+ */
+export function requireLogin(): boolean {
 	const auth = (window as any).__drawAuth
-	if (auth && auth.isAuthed) return false
+	if (getAuthState() !== 'authed') return false
 	if (auth) auth.openLogin()
 	return true
 }

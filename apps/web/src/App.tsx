@@ -14,7 +14,7 @@ import { CustomMainMenu } from "./CustomMainMenu"
 import { AssetDrawer } from "./AssetDrawer"
 import { JambotQuickGestures } from "./JambotQuickGestures"
 import { LocalBridgeReceiver } from "./LocalBridgeReceiver"
-import { requireLogin } from "./AuthGate"
+import { requireLogin, watchAuthReadOnly, getAuthState } from "./AuthGate"
 import { normalizeTldrawSnapshot } from "./snapshotNormalization"
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -1073,6 +1073,9 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
         editorRef.current = ed
         ;(window as any).editor = ed
 
+        // 비로그인 상태면 캔버스를 읽기 전용으로 잠근다(편집은 되지만 저장이 안 되는 상태를 만들지 않는다).
+        watchAuthReadOnly(ed)
+
         // Ensure canvas stays in light colorScheme even under Discord dark mode
         try {
             ed.user.updateUserPreferences({ colorScheme: 'light' })
@@ -1114,10 +1117,10 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                     // 직전 저장과 내용이 같으면 네트워크·디스크를 건드리지 않는다.
                     if (signature === lastSavedRef.current) return
 
-                    // 비로그인 상태에서 도면을 연 직후 올라오는 자동 저장(에셋 로드 등)은
-                    // 어차피 401 이므로 요청 자체를 보내지 않는다.
-                    const authed = Boolean((window as any).__drawAuth?.isAuthed)
-                    if (!authed && Date.now() - lastLoadAtRef.current < 5000) return
+                    // 비로그인(읽기 전용) 상태에서는 저장 요청 자체를 보내지 않는다.
+                    // 로그인 후에는 새로고침으로 상태가 갱신되므로 유실되는 편집은 없다.
+                    const authed = getAuthState() === 'authed'
+                    if (!authed) return
 
                     try {
                         const res = await fetch('/api/drawings', {
@@ -1131,11 +1134,11 @@ function TldrawFileWrapper({ initialFile }: { initialFile?: string }) {
                             })
                         })
                         if (res.status === 401) {
-                            // 읽기는 공개, 쓰기는 로그인 필요. 편집 내용은 화면에 남아 있다.
-                            // 도면을 연 직후(에셋 로드 등) 발생하는 자동 저장까지 로그인 창을 띄우지 않는다.
-                            if (Date.now() - lastLoadAtRef.current > 5000) {
+                            // 로그인 상태에서 세션이 만료된 경우에만 모달을 띄운다.
+                            // 비로그인 사용자는 캔버스가 읽기 전용이라 이 경로로 오지 않는다.
+                            if (getAuthState() === 'authed' && Date.now() - lastLoadAtRef.current > 5000) {
                                 requireLogin()
-                                showToast('🔒 저장하려면 로그인이 필요합니다.')
+                                showToast('🔒 세션이 만료되었습니다. 다시 로그인하세요.')
                             }
                             return
                         }
@@ -1797,6 +1800,7 @@ function TldrawWrapper({ roomId }: { roomId: string }) {
                 shapeUtils={allShapeUtils}
                 licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
                 onMount={(editor) => {
+                    watchAuthReadOnly(editor)
                     // [Agentic Access] Expose the official Tldraw Editor instance on window
                     // so MCP/agent automation (e.g. Playwright) can safely call editor.createShapes()
                     // etc. through the validated in-memory store instead of touching SQLite directly.
