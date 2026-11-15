@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { useEditor, createShapeId, Editor } from 'tldraw'
 import { toRichText } from './libraryTemplates'
 
+declare const __BUILD_ID__: string
+
 export function executeEditorAction(editor: Editor, action: string, params: any = {}): any {
 	if (action === 'add_sticky_note') {
 		const noteId = createShapeId()
@@ -153,6 +155,7 @@ export function LocalBridgeReceiver({ file, roomId }: { file?: string; roomId?: 
 				query.set('clientType', 'web')
 				if (file) query.set('file', file)
 				if (roomId) query.set('roomId', roomId)
+				query.set('buildId', typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev')
 
 				const url = `${proto}//${host}/api/bridge/ws?${query.toString()}`
 				const ws = new WebSocket(url)
@@ -163,7 +166,8 @@ export function LocalBridgeReceiver({ file, roomId }: { file?: string; roomId?: 
 						JSON.stringify({
 							type: 'status_update',
 							currentFile: file,
-							currentRoomId: roomId
+							currentRoomId: roomId,
+							buildId: typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'
 						})
 					)
 				}
