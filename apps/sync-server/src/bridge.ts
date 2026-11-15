@@ -2,6 +2,65 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { RawData } from 'ws'
+import { getIndexBetween, validateIndexKey } from '@tldraw/utils'
+
+/** tldraw v5 기본 prop. file-store fallback 이 일부 prop 만 채워 loadSnapshot 이 깨지는 것을 막는다. */
+const SHAPE_DEFAULTS: Record<string, Record<string, unknown>> = {
+	note: {
+		font: 'draw',
+		align: 'middle',
+		verticalAlign: 'middle',
+		labelColor: 'black',
+		growY: 0,
+		fontSizeAdjustment: 1,
+		url: '',
+		scale: 1,
+		textLastEditedBy: null
+	},
+	geo: {
+		align: 'middle',
+		verticalAlign: 'middle',
+		color: 'black',
+		dash: 'draw',
+		fill: 'none',
+		font: 'draw',
+		labelColor: 'black',
+		growY: 0,
+		scale: 1,
+		url: '',
+		flipX: false,
+		flipY: false
+	},
+	text: {
+		autoSize: true,
+		color: 'black',
+		font: 'draw',
+		scale: 1,
+		size: 'm',
+		textAlign: 'start'
+	}
+}
+
+function withDefaults(type: string, props: Record<string, unknown>) {
+	return { ...(SHAPE_DEFAULTS[type] ?? {}), ...props }
+}
+
+/** parent 의 마지막 유효 index 뒤에 오는 fractional index 를 만든다. */
+function indexAfterLast(store: Record<string, any>, parentId: string): string {
+	let last: string | null = null
+	for (const rec of Object.values(store)) {
+		if (!rec || rec.typeName !== 'shape') continue
+		if ((rec.parentId ?? 'page:page') !== parentId) continue
+		const index = String(rec.index ?? '')
+		try {
+			validateIndexKey(index)
+		} catch {
+			continue
+		}
+		if (last === null || index > last) last = index
+	}
+	return getIndexBetween(last, null)
+}
 
 export const DRAWINGS_DIR = process.env.DRAWINGS_DIR || '/home/ubuntu/llm-wiki/03_Resources/Drawings'
 
@@ -204,10 +263,8 @@ export function executeFileStoreFallback(action: string, args: any): any {
 	const store = doc.store
 	const now = Date.now()
 
-	// Find highest index among shapes
-	const existingShapes = Object.values(store).filter((r: any) => r && r.typeName === 'shape') as any[]
-	const shapeCount = existingShapes.length
-	const nextIndex = `a${(shapeCount + 1).toString().padStart(3, '0')}`
+	const pageId = args.pageId || 'page:page'
+	const nextIndex = indexAfterLast(store, pageId)
 
 	if (action === 'add_sticky_note') {
 		const shapeId = `shape:${randomUUID()}`
@@ -224,11 +281,11 @@ export function executeFileStoreFallback(action: string, args: any): any {
 			isLocked: false,
 			opacity: 1,
 			meta: {},
-			props: {
+			props: withDefaults('note', {
 				color: args.color || 'yellow',
 				size: 'm',
 				richText
-			}
+			})
 		}
 		writeFileSync(filePath, JSON.stringify(doc, null, 2), 'utf-8')
 		return { ok: true, shapeId, pageId: args.pageId || 'page:page', fallback: 'file-store' }
@@ -250,13 +307,13 @@ export function executeFileStoreFallback(action: string, args: any): any {
 			isLocked: false,
 			opacity: 1,
 			meta: {},
-			props: {
+			props: withDefaults('geo', {
 				geo: 'rectangle',
 				w,
 				h,
 				color: 'grey',
 				fill: 'none'
-			}
+			})
 		}
 
 		let labelId: string | null = null
@@ -269,19 +326,19 @@ export function executeFileStoreFallback(action: string, args: any): any {
 				x: (Number(args.x) || 100) + w / 2 - 100,
 				y: (Number(args.y) || 100) + h / 2 - 20,
 				rotation: 0,
-				index: `a${(shapeCount + 2).toString().padStart(3, '0')}`,
+				index: indexAfterLast(store, pageId),
 				parentId: args.pageId || 'page:page',
 				isLocked: false,
 				opacity: 1,
 				meta: {},
-				props: {
+				props: withDefaults('text', {
 					color: 'black',
 					size: 'm',
 					w: 200,
 					textAlign: 'middle',
 					autoSize: true,
 					richText: toRichText(args.text)
-				}
+				})
 			}
 		}
 

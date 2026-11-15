@@ -11,7 +11,7 @@ export class WiredTokenSwatchShapeUtil extends ShapeUtil<WiredTokenSwatchShape> 
     static override migrations = WiredTokenSwatchMigrations
 
     override getDefaultProps(): WiredTokenSwatchShape['props'] {
-        return { w: 160, h: 200, colorHex: '#1c2c4d', tokenName: '--sng-color-primary', role: 'Main Background' }
+        return { w: 160, h: 200, colorHex: '#1c2c4d', tokenName: '--mds-color-primary', role: 'Main Background' }
     }
 
     override getGeometry(shape: WiredTokenSwatchShape) {

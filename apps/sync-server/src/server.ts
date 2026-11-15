@@ -336,7 +336,8 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 				res.header('Content-Type', 'image/svg+xml')
 			}
 			res.header('Access-Control-Allow-Origin', '*')
-			res.header('Content-Security-Policy', "default-src 'none'")
+			// Remove default-src 'none' which blocks <img> and <video> embedding in modern browsers
+			res.header('Cross-Origin-Resource-Policy', 'cross-origin')
 			res.send(data)
 		} catch (err: any) {
 			res.status(404).send({ ok: false, error: 'Asset not found', id })
@@ -500,7 +501,7 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 
 		try {
 			const body = await parseRequestBody(req)
-			const { prompt, aspect = '16:9', model = 'veo-lite', profile = 'mindulle-design' } = body || {}
+			const { prompt, initialFrame, aspect = '16:9', profile = 'mindulle-design' } = body || {}
 
 			if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
 				res.status(400).send({ ok: false, error: 'Missing prompt' })
@@ -512,27 +513,43 @@ app.addHook('onRequest', async (req) => console.log('REQ:', req.url))
 			const assetId = `veo_${Date.now()}.mp4`
 			const outputPath = path.join(assetsDir, assetId)
 
-			const gflowBin = '/home/ubuntu/ai-env/bin/gflow'
-			const args = [
-				'video',
-				't2v',
-				prompt.trim(),
-				'--aspect',
-				aspect,
-				'--model',
-				model,
-				'--profile',
-				profile,
-				'-o',
-				outputPath
-			]
-
-			const child = spawn(gflowBin, args, {
-				env: {
-					...process.env,
-					GFLOW_CLI_FLOW_HOST: 'auto'
+			// Resolve initial frame if provided (e.g. /uploads/scene_01_frost.jpg or absolute path)
+			let inputImagePath: string | null = null
+			if (initialFrame && typeof initialFrame === 'string') {
+				if (initialFrame.startsWith('/uploads/')) {
+					const cleanName = initialFrame.replace('/uploads/', '').split('?')[0]
+					inputImagePath = path.join(assetsDir, cleanName)
+				} else if (initialFrame.startsWith('/')) {
+					inputImagePath = initialFrame
 				}
-			})
+			}
+
+			// If initial frame exists, route through custom Sonagi Veo i2v Bridge
+			const sonagiBridgeScript = '/home/ubuntu/sonagi-portfolio/scripts/sonagi_veo_bridge.py'
+			const pythonBin = '/home/ubuntu/ai-env/bin/python3'
+			const gflowBin = '/home/ubuntu/ai-env/bin/gflow'
+
+			let child: any
+			if (inputImagePath && (await fs.stat(inputImagePath).catch(() => null))) {
+				console.log('[AI Video] Routing via Custom Sonagi Veo i2v Bridge with initialFrame:', inputImagePath)
+				child = spawn(pythonBin, [
+					sonagiBridgeScript,
+					'-i', inputImagePath,
+					'-p', prompt.trim(),
+					'-o', outputPath
+				])
+			} else {
+				console.log('[AI Video] Routing via standard gflow video t2v')
+				child = spawn(gflowBin, [
+					'video', 't2v',
+					prompt.trim(),
+					'--aspect', aspect,
+					'--profile', profile,
+					'-o', outputPath
+				], {
+					env: { ...process.env, GFLOW_CLI_FLOW_HOST: 'auto' }
+				})
+			}
 
 			let stderrOutput = ''
 			child.stderr.on('data', (d) => {
